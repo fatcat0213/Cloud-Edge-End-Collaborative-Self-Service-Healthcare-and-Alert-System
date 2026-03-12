@@ -1448,7 +1448,7 @@ class MqttSubscriberIntegrationTest {
         publisher.disconnect();
     }
 
-    private TerminalStatusDto buildPrinterErrorStatus(String id) {
+    private TerminalStatusDto buildPrinterErrorStatus(String id) throws Exception {
         TerminalStatusDto s = new TerminalStatusDto();
         s.setTerminalId(id);
         s.setTimestamp(System.currentTimeMillis());
@@ -1461,6 +1461,10 @@ class MqttSubscriberIntegrationTest {
         TerminalStatusDto.QueueStatus qs = new TerminalStatusDto.QueueStatus();
         qs.setDepth(2);
         s.setQueue(qs);
+        // 计算 HMAC 签名，与 MqttSubscriber 使用相同密钥（测试环境默认值）
+        ObjectMapper mapper = new ObjectMapper();
+        String payloadForSign = mapper.writeValueAsString(s); // hmac 字段此时为 null
+        s.setHmac(com.yunbd.common.util.HmacUtil.sign(payloadForSign, "yunbd-terminal-secret-2026"));
         return s;
     }
 }
