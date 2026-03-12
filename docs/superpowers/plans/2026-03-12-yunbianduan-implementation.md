@@ -1074,6 +1074,34 @@ git commit -m "feat: implement terminal simulator with MQTT heartbeat publishing
 </project>
 ```
 
+同时在 `edge-service/pom.xml` 的 dependencies 中补充 gRPC 依赖（`EdgeCloudGrpcClient` 使用）：
+
+```xml
+<!-- 追加到 edge-service/pom.xml <dependencies> 末尾 -->
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-netty-shaded</artifactId>
+    <version>${grpc.version}</version>
+</dependency>
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-protobuf</artifactId>
+    <version>${grpc.version}</version>
+</dependency>
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-stub</artifactId>
+    <version>${grpc.version}</version>
+</dependency>
+<dependency>
+    <groupId>com.google.protobuf</groupId>
+    <artifactId>protobuf-java</artifactId>
+    <version>${protobuf.version}</version>
+</dependency>
+```
+
+**注：** `EdgeCloudGrpcClient` 的完整 proto 定义和代码生成（`protoc` + `grpc-java` 插件）在 Chunk 3 Task 6 完成后另起一个专项 Task 实现。proto 接口定义已在规格文档第 8 节给出。
+
 - [ ] **Step 1: 编写 Drools 规则引擎测试（先失败）**
 
 ```java
@@ -1231,6 +1259,20 @@ rule "Queue Overload - P1"
         alert.setLevel("P1");
         alert.setType("BUSINESS");
         alert.setMessage("队列积压: " + $s.getQueue().getDepth() + " 人");
+        alert.setTimestamp($s.getTimestamp());
+        alerts.add(alert);
+end
+
+rule "Payment Timeout - P1"
+    when
+        $s : TerminalStatusDto(queue.avgWaitMs > 30000)  // 单笔平均等待 >30s 视为支付超时风险
+    then
+        AlertDto alert = new AlertDto();
+        alert.setAlertId(UUID.randomUUID().toString());
+        alert.setTerminalId($s.getTerminalId());
+        alert.setLevel("P1");
+        alert.setType("BUSINESS");
+        alert.setMessage("支付处理超时风险: 平均等待 " + $s.getQueue().getAvgWaitMs()/1000 + "s");
         alert.setTimestamp($s.getTimestamp());
         alerts.add(alert);
 end
@@ -1467,6 +1509,9 @@ public class MqttSubscriber {
         this.alertHandler = alertHandler;
     }
 
+    private static final String HMAC_SECRET =
+        System.getenv().getOrDefault("HMAC_SECRET", "yunbd-terminal-secret-2026");
+
     public void start() throws Exception {
         client = new MqttAsyncClient("tcp://" + brokerHost + ":" + brokerPort,
             "edge-subscriber", new MemoryPersistence());
@@ -1476,6 +1521,15 @@ public class MqttSubscriber {
                 try {
                     TerminalStatusDto status = mapper.readValue(
                         message.getPayload(), TerminalStatusDto.class);
+                    // HMAC 完整性验证（规格 §3 安全要求）
+                    String receivedHmac = status.getHmac();
+                    status.setHmac(null); // 签名时 hmac 字段为 null
+                    String payload = mapper.writeValueAsString(status);
+                    if (!com.yunbd.common.util.HmacUtil.verify(payload, HMAC_SECRET, receivedHmac)) {
+                        log.warn("HMAC verification failed for terminal {}, dropping message",
+                            status.getTerminalId());
+                        return;
+                    }
                     List<AlertDto> alerts = droolsEngine.evaluate(status);
                     alerts.forEach(alertHandler);
                 } catch (Exception e) {
@@ -1573,6 +1627,35 @@ git commit -m "feat: implement edge MQTT subscriber with Drools alert pipeline"
 - Create: `payment-service/src/main/java/com/yunbd/payment/service/PaymentVerifyService.java`
 - Create: `payment-service/src/main/java/com/yunbd/payment/service/IdempotencyService.java`
 - Create: `payment-service/src/test/java/com/yunbd/payment/service/PaymentVerifyServiceTest.java`
+
+- [ ] **Step 0: 创建 payment-service/pom.xml**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yunbd</groupId>
+        <artifactId>yunbianduan-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>payment-service</artifactId>
+
+    <dependencies>
+        <dependency><groupId>com.yunbd</groupId><artifactId>common</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-redis</artifactId></dependency>
+        <dependency><groupId>org.springframework.kafka</groupId><artifactId>spring-kafka</artifactId></dependency>
+        <dependency><groupId>org.springframework.cloud</groupId><artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId></dependency>
+        <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><optional>true</optional></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.mockito</groupId><artifactId>mockito-junit-jupiter</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.springframework.kafka</groupId><artifactId>spring-kafka-test</artifactId><scope>test</scope></dependency>
+    </dependencies>
+</project>
+```
 
 - [ ] **Step 1: 编写支付验证单元测试（先失败）**
 
@@ -1809,7 +1892,32 @@ git commit -m "feat: implement payment verification service with parallel async 
 - Create: `cloud-gateway/src/main/java/com/yunbd/gateway/GatewayApplication.java`
 - Create: `cloud-gateway/src/test/java/com/yunbd/gateway/GatewayRouteTest.java`
 
-- [ ] **Step 1: Gateway 路由测试**
+- [ ] **Step 0: 创建 cloud-gateway/pom.xml**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yunbd</groupId>
+        <artifactId>yunbianduan-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>cloud-gateway</artifactId>
+
+    <dependencies>
+        <dependency><groupId>org.springframework.cloud</groupId><artifactId>spring-cloud-starter-gateway</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-redis-reactive</artifactId></dependency>
+        <dependency><groupId>org.springframework.cloud</groupId><artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+    </dependencies>
+</project>
+```
+
+- [ ] **Step 1: Gateway 路由测试（MockBean Redis，不需要真实连接）**
 
 ```java
 // cloud-gateway/src/test/java/com/yunbd/gateway/GatewayRouteTest.java
@@ -1818,11 +1926,17 @@ package com.yunbd.gateway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cloud.gateway.route.RouteLocator;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import static org.assertj.core.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.redis.host=localhost")
 class GatewayRouteTest {
+    // 避免 @SpringBootTest 时尝试真实连接 Redis
+    @MockBean
+    ReactiveStringRedisTemplate redisTemplate;
+
     @Autowired
     RouteLocator routeLocator;
 
@@ -1899,7 +2013,39 @@ git commit -m "feat: configure spring cloud gateway routes with rate limiting an
 ### Task 9: 四个业务微服务骨架（并行结构相同）
 
 **Files:**
-- Create: `registration-service/`, `report-service/`, `queue-service/`, `insurance-service/` 各自的 Application.java 和 Controller.java
+- Create: `registration-service/pom.xml`, `report-service/pom.xml`, `queue-service/pom.xml`, `insurance-service/pom.xml`
+- Create: 各自的 Application.java 和 Controller.java
+
+- [ ] **Step 0: 为四个服务创建 POM（结构相同，artifactId 不同）**
+
+以 `registration-service/pom.xml` 为例（其余三个照此模式替换 artifactId 和 port）：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yunbd</groupId>
+        <artifactId>yunbianduan-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>registration-service</artifactId>  <!-- 其余服务替换为 report-service / queue-service / insurance-service -->
+
+    <dependencies>
+        <dependency><groupId>com.yunbd</groupId><artifactId>common</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-jpa</artifactId></dependency>
+        <dependency><groupId>mysql</groupId><artifactId>mysql-connector-java</artifactId><version>8.0.33</version></dependency>
+        <dependency><groupId>org.springframework.kafka</groupId><artifactId>spring-kafka</artifactId></dependency>
+        <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><optional>true</optional></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+    </dependencies>
+</project>
+```
+
+对 `report-service`、`queue-service`、`insurance-service` 重复上述 POM（只改 `artifactId`）。
 
 - [ ] **Step 1: 挂号服务核心测试与实现**
 
@@ -2023,11 +2169,17 @@ spec:
         - name: SPRING_DATASOURCE_URL
           value: jdbc:mysql://mysql:3306/yunbianduan
         - name: SPRING_DATASOURCE_PASSWORD
-          value: yunbd_root_2026
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: root-password
         - name: SPRING_REDIS_HOST
           value: redis
         - name: SPRING_REDIS_PASSWORD
-          value: yunbd_redis_2026
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: password
         readinessProbe:
           httpGet:
             path: /actuator/health
@@ -2064,10 +2216,56 @@ git commit -m "feat: add k8s deployment manifests for cloud microservices"
 **Files:**
 - Create: `flink-jobs/pom.xml`
 - Create: `flink-jobs/src/main/java/com/yunbd/flink/job/TransactionSuccessRateJob.java`
+- Create: `flink-jobs/src/main/java/com/yunbd/flink/job/SuccessRateProcessFunction.java`
 - Create: `flink-jobs/src/test/java/com/yunbd/flink/job/TransactionSuccessRateJobTest.java`
 - Create: `infra/flink/flink-deployment.yaml`
 
-- [ ] **Step 1: Flink 作业单元测试**
+- [ ] **Step 0: 创建 flink-jobs/pom.xml**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yunbd</groupId>
+        <artifactId>yunbianduan-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>flink-jobs</artifactId>
+
+    <dependencies>
+        <dependency><groupId>com.yunbd</groupId><artifactId>common</artifactId></dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-streaming-java</artifactId>
+            <version>${flink.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-clients</artifactId>
+            <version>${flink.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-kafka</artifactId>
+            <version>3.1.0-1.18</version>
+        </dependency>
+        <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><optional>true</optional></dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-test-utils</artifactId>
+            <version>${flink.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.assertj</groupId><artifactId>assertj-core</artifactId><scope>test</scope></dependency>
+    </dependencies>
+</project>
+```
+
+- [ ] **Step 1: Flink 作业单元测试（带真实事件数据）**
 
 ```java
 // flink-jobs/src/test/java/com/yunbd/flink/job/TransactionSuccessRateJobTest.java
@@ -2075,8 +2273,8 @@ package com.yunbd.flink.job;
 
 import com.yunbd.common.dto.TerminalEventDto;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import static org.assertj.core.api.Assertions.*;
@@ -2086,21 +2284,33 @@ class TransactionSuccessRateJobTest {
     @Test
     void detectLowSuccessRate_shouldTriggerAlert() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(1);
         List<String> capturedAlerts = new CopyOnWriteArrayList<>();
 
         TransactionSuccessRateJob job = new TransactionSuccessRateJob(env);
-        // 注入10个事件，8个失败（成功率20% < 阈值80%）
         job.runWithTestData(buildLowSuccessRateEvents(), capturedAlerts::add);
-
-        env.execute("test");
+        env.execute("test-success-rate");
 
         assertThat(capturedAlerts).isNotEmpty();
         assertThat(capturedAlerts.get(0)).contains("success_rate_low");
     }
 
+    // 2 success + 8 failure 在同一分钟窗口内 → 成功率 20% < 阈值 80%
     private List<TerminalEventDto> buildLowSuccessRateEvents() {
-        // 2 success, 8 failure in 1 min window
-        return List.of(/* ... */);
+        long baseTime = System.currentTimeMillis() - 30_000; // 30秒前，在同一分钟窗口
+        List<TerminalEventDto> events = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            TerminalEventDto e = new TerminalEventDto();
+            e.setEventId("EVT-" + i);
+            e.setTerminalId("T001");
+            e.setTimestamp(baseTime + i * 1000L);
+            e.setEventType("PAYMENT");
+            e.setStatus(i < 2 ? "success" : "failure");  // 2 success, 8 failure
+            e.setPatientId("P00" + i);
+            e.setDurationMs(500L);
+            events.add(e);
+        }
+        return events;
     }
 }
 ```
@@ -2113,7 +2323,49 @@ mvn test -pl flink-jobs -Dtest=TransactionSuccessRateJobTest
 
 Expected: FAIL
 
-- [ ] **Step 3: 实现 Flink 作业**
+- [ ] **Step 3a: 实现 SuccessRateProcessFunction**
+
+```java
+// flink-jobs/src/main/java/com/yunbd/flink/job/SuccessRateProcessFunction.java
+package com.yunbd.flink.job;
+
+import com.yunbd.common.dto.TerminalEventDto;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.util.Collector;
+
+public class SuccessRateProcessFunction
+    extends ProcessWindowFunction<TerminalEventDto, String, String, TimeWindow> {
+
+    private final double threshold;
+
+    public SuccessRateProcessFunction(double threshold) {
+        this.threshold = threshold;
+    }
+
+    @Override
+    public void process(String terminalId,
+                        Context ctx,
+                        Iterable<TerminalEventDto> elements,
+                        Collector<String> out) {
+        long total = 0, success = 0;
+        for (TerminalEventDto e : elements) {
+            total++;
+            if ("success".equals(e.getStatus())) success++;
+        }
+        if (total > 0) {
+            double rate = (double) success / total;
+            if (rate < threshold) {
+                out.collect(String.format(
+                    "success_rate_low terminal=%s rate=%.2f total=%d",
+                    terminalId, rate, total));
+            }
+        }
+    }
+}
+```
+
+- [ ] **Step 3b: 实现 Flink 作业**
 
 ```java
 // flink-jobs/src/main/java/com/yunbd/flink/job/TransactionSuccessRateJob.java
@@ -2204,6 +2456,9 @@ spec:
     matchLabels:
       app: flink-taskmanager
   template:
+    metadata:
+      labels:
+        app: flink-taskmanager
     spec:
       containers:
       - name: taskmanager
@@ -2365,8 +2620,149 @@ git commit -m "feat: deploy prometheus/grafana/jaeger monitoring stack"
 ### Task 14: 端到端验收测试
 
 **Files:**
-- Create: `test-data/anomaly-samples.json`
+- Create: `infra/sim/terminal-simulator-deployment.yaml`
+- Create: `test-data/anomaly-samples.json`（结构定义，1000条样本）
+- Create: `simulator/src/main/java/com/yunbd/sim/AnomalyReplayRunner.java`
 - Create: `docs/baseline/T0-measurement.md`
+
+- [ ] **Step 0a: 创建终端仿真器 K8s 部署清单**
+
+```yaml
+# infra/sim/terminal-simulator-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: terminal-simulator
+  namespace: yunbianduan-sim
+spec:
+  replicas: 20
+  selector:
+    matchLabels:
+      app: terminal-simulator
+  template:
+    metadata:
+      labels:
+        app: terminal-simulator
+    spec:
+      containers:
+      - name: simulator
+        image: yunbd/simulator:latest
+        env:
+        - name: MQTT_HOST
+          value: mosquitto.yunbianduan-edge.svc.cluster.local
+        - name: MQTT_PORT
+          value: "1883"
+        - name: TERMINAL_COUNT
+          value: "1"     # 每个 Pod 模拟 1 台终端，共 20 个副本
+        - name: HMAC_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: terminal-secret
+              key: hmac-secret
+```
+
+- [ ] **Step 0b: 创建 test-data/anomaly-samples.json（标注样本结构）**
+
+```json
+[
+  {
+    "sampleId": "SAMPLE-001",
+    "terminalId": "T001",
+    "timestamp": 1741744800000,
+    "status": {
+      "terminalId": "T001",
+      "timestamp": 1741744800000,
+      "status": "online",
+      "hardware": { "printer": "paper_jam", "cardReader": "ok", "screen": "ok" },
+      "queue": { "depth": 3, "avgWaitMs": 45000 }
+    },
+    "label": "ANOMALY",
+    "anomalyType": "HARDWARE",
+    "expectedLevel": "P0"
+  },
+  {
+    "sampleId": "SAMPLE-002",
+    "terminalId": "T002",
+    "timestamp": 1741744801000,
+    "status": {
+      "terminalId": "T002",
+      "timestamp": 1741744801000,
+      "status": "online",
+      "hardware": { "printer": "ok", "cardReader": "ok", "screen": "ok" },
+      "queue": { "depth": 5, "avgWaitMs": 30000 }
+    },
+    "label": "NORMAL",
+    "anomalyType": null,
+    "expectedLevel": null
+  }
+  // ... 998 more samples (hardware:150, business:150, security:100, mixed:100, normal:500)
+]
+```
+
+**注意：** 实际 1000 条样本需在系统调试阶段基于真实运行数据生成并人工标注。文件仅定义结构，占位样本 2 条。
+
+- [ ] **Step 0c: 实现 AnomalyReplayRunner（仿真回放工具）**
+
+```java
+// simulator/src/main/java/com/yunbd/sim/AnomalyReplayRunner.java
+package com.yunbd.sim;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import java.io.File;
+import java.util.List;
+
+/**
+ * 从标注样本文件回放 MQTT 消息，用于验证异常检测准确率。
+ * 用法: java -cp ... AnomalyReplayRunner <samples.json> <mqtt-host> <mqtt-port>
+ */
+@Slf4j
+public class AnomalyReplayRunner {
+    public static void main(String[] args) throws Exception {
+        if (args.length < 3) {
+            System.err.println("Usage: AnomalyReplayRunner <samples.json> <mqtt-host> <mqtt-port>");
+            System.exit(1);
+        }
+        String samplesFile = args[0];
+        String mqttHost = args[1];
+        int mqttPort = Integer.parseInt(args[2]);
+
+        ObjectMapper mapper = new ObjectMapper();
+        List<JsonNode> samples = mapper.readValue(new File(samplesFile),
+            mapper.getTypeFactory().constructCollectionType(List.class, JsonNode.class));
+
+        MqttPublisher publisher = new MqttPublisher(mqttHost, mqttPort);
+        publisher.connect();
+
+        int count = 0;
+        for (JsonNode sample : samples) {
+            String terminalId = sample.get("terminalId").asText();
+            String statusJson = mapper.writeValueAsString(sample.get("status"));
+            publisher.publish("terminal/" + terminalId + "/status", statusJson);
+            count++;
+            Thread.sleep(10); // 10ms 间隔，避免压垮 broker
+        }
+        log.info("Replayed {} samples", count);
+        publisher.disconnect();
+        // 结果从 MySQL alert_record 表读取并与 label 字段对比（见 Task 14 Step 3）
+    }
+}
+```
+
+- [ ] **Step 0d: 在 Schema 中补充 anomaly_eval_result 表**
+
+```sql
+-- 在 MySQL yunbianduan 库中执行
+CREATE TABLE anomaly_eval_result (
+    sample_id VARCHAR(32) PRIMARY KEY,
+    terminal_id VARCHAR(20),
+    label VARCHAR(10),     -- ANOMALY / NORMAL
+    predicted VARCHAR(10), -- ANOMALY / NORMAL（根据 alert_record 是否有对应记录）
+    actual_level VARCHAR(5),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
 - [ ] **Step 1: 验证 <50ms 延迟（注入延迟后）**
 
@@ -2374,11 +2770,16 @@ git commit -m "feat: deploy prometheus/grafana/jaeger monitoring stack"
 # 1. 注入延迟
 ./simulation/inject-delay.sh
 
-# 2. 启动 20 台终端仿真器（sim namespace）
-kubectl apply -f infra/sim/terminal-simulator-deployment.yaml
-kubectl scale deployment terminal-simulator -n yunbianduan-sim --replicas=20
+# 2. 先创建 terminal-secret
+kubectl create secret generic terminal-secret \
+  --from-literal=hmac-secret=yunbd-terminal-secret-2026 \
+  -n yunbianduan-sim
 
-# 3. 等待 2 分钟，然后在 Grafana 查看 Jaeger 指标
+# 3. 启动 20 台终端仿真器（sim namespace）
+kubectl apply -f infra/sim/terminal-simulator-deployment.yaml
+Expected: 20 个 terminal-simulator Pod Running
+
+# 4. 等待 2 分钟，然后在 Grafana 查看 Jaeger 指标
 # Prometheus 查询：histogram_quantile(0.95, rate(edge_cloud_latency_ms_bucket[5m]))
 # 期望值: < 50ms
 echo "在 Grafana (http://localhost:30030) 查看 P95 延迟面板"
@@ -2401,20 +2802,29 @@ echo "检查 P99 响应时间 < 1000ms"
 - [ ] **Step 3: 验证异常检测 F1 ≥ 0.98**
 
 ```bash
-# 回放 1000 条标注异常样本
-# test-data/anomaly-samples.json 包含标注的正常/异常状态消息
-# 运行回放脚本：
-# mvn exec:java -pl simulator -Dexec.mainClass=com.yunbd.sim.AnomalyReplayRunner \
-#   -Dexec.args="test-data/anomaly-samples.json"
-#
-# 从 MySQL alert_record 表统计 TP/FP/FN：
-# SELECT
-#   SUM(CASE WHEN actual=1 AND predicted=1 THEN 1 ELSE 0 END) as TP,
-#   SUM(CASE WHEN actual=0 AND predicted=1 THEN 1 ELSE 0 END) as FP,
-#   SUM(CASE WHEN actual=1 AND predicted=0 THEN 1 ELSE 0 END) as FN
-# FROM anomaly_eval_result;
-# 计算 F1 = 2*TP / (2*TP + FP + FN)，要求 >= 0.98，FP Rate < 2%
-echo "计算 F1 Score，期望 >= 0.98"
+# 1. 回放 1000 条标注样本（需先完成 1000 条样本标注，见 Step 0b 说明）
+MQTT_POD=$(kubectl get pod -n yunbianduan-edge -l app=mosquitto -o jsonpath='{.items[0].metadata.name}')
+MQTT_HOST=$(kubectl get svc mosquitto -n yunbianduan-edge -o jsonpath='{.spec.clusterIP}')
+
+mvn exec:java -pl simulator \
+  -Dexec.mainClass=com.yunbd.sim.AnomalyReplayRunner \
+  -Dexec.args="test-data/anomaly-samples.json $MQTT_HOST 1883"
+
+# 2. 等待 10 秒让所有规则完成处理
+sleep 10
+
+# 3. 从 MySQL 统计 F1（先确保 anomaly_eval_result 已根据 alert_record 填充）
+# 填充评估结果（将 anomaly-samples.json 的 label 与 alert_record 对比）：
+kubectl exec -n yunbianduan-cloud $(kubectl get pod -n yunbianduan-cloud -l app=mysql -o jsonpath='{.items[0].metadata.name}') \
+  -- mysql -u root -pyunbd_root_2026 yunbianduan -e "
+SELECT
+  SUM(CASE WHEN label='ANOMALY' AND predicted='ANOMALY' THEN 1 ELSE 0 END) as TP,
+  SUM(CASE WHEN label='NORMAL'  AND predicted='ANOMALY' THEN 1 ELSE 0 END) as FP,
+  SUM(CASE WHEN label='ANOMALY' AND predicted='NORMAL'  THEN 1 ELSE 0 END) as FN,
+  SUM(CASE WHEN label='NORMAL'  AND predicted='NORMAL'  THEN 1 ELSE 0 END) as TN
+FROM anomaly_eval_result;
+"
+# 计算 F1 = 2*TP / (2*TP + FP + FN) ≥ 0.98，FP Rate = FP/(FP+TN) < 2%
 ```
 
 - [ ] **Step 4: 验证异常响应 <5s**
