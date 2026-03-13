@@ -3,10 +3,10 @@
 ## Prerequisites
 - Kubernetes cluster running (kubectl configured)
 - Namespaces not yet created
-- Host paths `/data/yunbianduan/mysql` and `/data/yunbianduan/kafka` will be created automatically by Kubernetes (`DirectoryOrCreate`); ensure the node has sufficient disk space
+- Host paths `/data/yunbianduan/mysql`, `/data/yunbianduan/kafka`, and `/data/yunbianduan/mosquitto` will be created automatically by Kubernetes (`DirectoryOrCreate`); ensure the node has sufficient disk space
 
 ## Dev Environment Notes
-- MySQL and Kafka use `hostPath` volumes — data survives Pod restarts but is tied to the node. Wipe with `rm -rf /data/yunbianduan/` on the node to reset state.
+- MySQL, Kafka, and Mosquitto use `hostPath` volumes — data survives Pod restarts but is tied to the node. Wipe with `rm -rf /data/yunbianduan/` on the node to reset state.
 - Redis uses no persistent volume — Redis data is lost on Pod restart (acceptable for dev caching).
 - Redis password is passed via command argument (visible in `/proc/1/cmdline`). Acceptable for dev; use a redis.conf Secret volume in production.
 
@@ -28,11 +28,16 @@ kubectl create secret generic redis-secret \
   -n yunbianduan-cloud
 ```
 
-### 3. Deploy infrastructure
+### 3. Deploy cloud infrastructure
 ```bash
 kubectl apply -f kafka/kafka-deployment.yaml
 kubectl apply -f mysql/mysql-deployment.yaml
 kubectl apply -f redis/redis-cloud-deployment.yaml
+```
+
+### 3b. Deploy edge infrastructure
+```bash
+kubectl apply -f kubeedge/mosquitto-deployment.yaml
 ```
 
 ### 4. Initialize MySQL schema
