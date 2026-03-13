@@ -1,0 +1,79 @@
+package com.yunbd.edge.rules
+
+import com.yunbd.common.dto.TerminalStatusDto
+import com.yunbd.common.dto.AlertDto
+import java.util.List
+import java.util.ArrayList
+import java.util.UUID
+
+global List alerts
+
+rule "Printer Paper Jam - P0"
+    when
+        $s : TerminalStatusDto(hardware.printer == "paper_jam" || hardware.printer == "error")
+    then
+        AlertDto alert = new AlertDto();
+        alert.setAlertId(UUID.randomUUID().toString());
+        alert.setTerminalId($s.getTerminalId());
+        alert.setLevel("P0");
+        alert.setType("HARDWARE");
+        alert.setMessage("打印机异常: " + $s.getHardware().getPrinter());
+        alert.setTimestamp($s.getTimestamp());
+        alerts.add(alert);
+end
+
+rule "Card Reader Error - P0"
+    when
+        $s : TerminalStatusDto(hardware.cardReader == "error")
+    then
+        AlertDto alert = new AlertDto();
+        alert.setAlertId(UUID.randomUUID().toString());
+        alert.setTerminalId($s.getTerminalId());
+        alert.setLevel("P0");
+        alert.setType("HARDWARE");
+        alert.setMessage("读卡器故障");
+        alert.setTimestamp($s.getTimestamp());
+        alerts.add(alert);
+end
+
+rule "Terminal Offline - P0"
+    when
+        $s : TerminalStatusDto(status == "offline")
+    then
+        AlertDto alert = new AlertDto();
+        alert.setAlertId(UUID.randomUUID().toString());
+        alert.setTerminalId($s.getTerminalId());
+        alert.setLevel("P0");
+        alert.setType("HARDWARE");
+        alert.setMessage("终端离线");
+        alert.setTimestamp($s.getTimestamp());
+        alerts.add(alert);
+end
+
+rule "Queue Overload - P1"
+    when
+        $s : TerminalStatusDto(queue.depth > 50)
+    then
+        AlertDto alert = new AlertDto();
+        alert.setAlertId(UUID.randomUUID().toString());
+        alert.setTerminalId($s.getTerminalId());
+        alert.setLevel("P1");
+        alert.setType("BUSINESS");
+        alert.setMessage("队列积压: " + $s.getQueue().getDepth() + " 人");
+        alert.setTimestamp($s.getTimestamp());
+        alerts.add(alert);
+end
+
+rule "Payment Timeout - P1"
+    when
+        $s : TerminalStatusDto(queue.avgWaitMs > 30000)
+    then
+        AlertDto alert = new AlertDto();
+        alert.setAlertId(UUID.randomUUID().toString());
+        alert.setTerminalId($s.getTerminalId());
+        alert.setLevel("P1");
+        alert.setType("BUSINESS");
+        alert.setMessage("支付处理超时风险: 平均等待 " + $s.getQueue().getAvgWaitMs()/1000 + "s");
+        alert.setTimestamp($s.getTimestamp());
+        alerts.add(alert);
+end

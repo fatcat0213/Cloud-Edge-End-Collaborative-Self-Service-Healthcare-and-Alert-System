@@ -1,0 +1,19 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: edge-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:yunbd_redis_2026}
+
+mqtt:
+  broker-host: ${MQTT_HOST:localhost}
+  broker-port: ${MQTT_PORT:1883}
+
+cloud:
+  grpc-host: ${CLOUD_GRPC_HOST:localhost}
+  grpc-port: ${CLOUD_GRPC_PORT:9090}
