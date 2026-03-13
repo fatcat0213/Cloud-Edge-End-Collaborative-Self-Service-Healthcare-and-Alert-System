@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: yunbianduan-cloud
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: yunbianduan-edge
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: yunbianduan-sim
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
