@@ -1,0 +1,6 @@
+mqtt:
+  host: ${MQTT_HOST:localhost}
+  port: ${MQTT_PORT:1883}
+terminal:
+  count: ${TERMINAL_COUNT:20}
+  hmac-secret: ${HMAC_SECRET:yunbd-terminal-secret-2026}
