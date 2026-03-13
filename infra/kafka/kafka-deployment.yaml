@@ -31,6 +31,15 @@ spec:
           value: "CONTROLLER"
         ports:
         - containerPort: 9092
+        - containerPort: 9093
+        volumeMounts:
+        - name: kafka-data
+          mountPath: /bitnami/kafka
+      volumes:
+      - name: kafka-data
+        hostPath:
+          path: /data/yunbianduan/kafka
+          type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service

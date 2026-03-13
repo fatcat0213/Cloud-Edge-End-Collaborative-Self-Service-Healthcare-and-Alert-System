@@ -16,6 +16,9 @@ spec:
       containers:
       - name: redis
         image: redis:7.2
+        # Dev note: password is resolved from env-var substitution into the command argument.
+        # The resolved value will appear in /proc/1/cmdline on the node. Acceptable for
+        # dev; production should use a redis.conf Secret volume instead.
         command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)"]
         env:
         - name: REDIS_PASSWORD
