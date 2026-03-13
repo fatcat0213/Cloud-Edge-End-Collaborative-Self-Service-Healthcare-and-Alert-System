@@ -29,12 +29,21 @@ public class TerminalClient {
         String broker = "tcp://" + brokerHost + ":" + brokerPort;
         mqttClient = new MqttAsyncClient(broker, terminalId, new MemoryPersistence());
         MqttConnectOptions opts = new MqttConnectOptions();
-        opts.setCleanSession(false);
+        // cleanSession=true is consistent with MemoryPersistence: no durable session state.
+        opts.setCleanSession(true);
         opts.setKeepAliveInterval(30);
         mqttClient.connect(opts).waitForCompletion(5000);
         log.info("Terminal {} connected to {}", terminalId, broker);
     }
 
+    /**
+     * Builds a status payload with an HMAC-SHA256 signature.
+     *
+     * <p>HMAC protocol convention: the signature covers the JSON serialisation of this
+     * DTO <em>before</em> the {@code hmac} field is set (i.e. hmac=null in the signed
+     * bytes). Receivers must clear the {@code hmac} field (set to null), re-serialise
+     * to canonical JSON, and then verify against the attached signature.
+     */
     public TerminalStatusDto buildStatusPayload() {
         TerminalStatusDto dto = new TerminalStatusDto();
         dto.setTerminalId(terminalId);
@@ -62,6 +71,9 @@ public class TerminalClient {
     }
 
     public void publishStatus() throws Exception {
+        if (mqttClient == null || !mqttClient.isConnected()) {
+            throw new IllegalStateException("Terminal " + terminalId + " is not connected; call connect() first");
+        }
         TerminalStatusDto dto = buildStatusPayload();
         String topic = "terminal/" + terminalId + "/status";
         String payload = mapper.writeValueAsString(dto);

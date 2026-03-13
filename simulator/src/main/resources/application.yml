@@ -1,3 +1,6 @@
+# Reference documentation for environment variables accepted by TerminalSimulator.main().
+# This module does not use Spring Boot; configuration is read via System.getenv() at startup.
+# Set these variables in the container environment or K8s Deployment manifest.
 mqtt:
   host: ${MQTT_HOST:localhost}
   port: ${MQTT_PORT:1883}

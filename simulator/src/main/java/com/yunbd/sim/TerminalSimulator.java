@@ -1,6 +1,7 @@
 package com.yunbd.sim;
 
 import lombok.extern.slf4j.Slf4j;
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -11,7 +12,8 @@ public class TerminalSimulator {
     private final String brokerHost;
     private final int brokerPort;
     private final ScheduledExecutorService scheduler;
-    private final List<TerminalClient> clients = new ArrayList<>();
+    // ConcurrentList: start() and the shutdown hook can race on shutdown.
+    private final List<TerminalClient> clients = Collections.synchronizedList(new ArrayList<>());
 
     public TerminalSimulator(int terminalCount, String brokerHost, int brokerPort) {
         this.terminalCount = terminalCount;
