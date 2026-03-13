@@ -74,4 +74,27 @@ class DroolsEngineTest {
 
         assertThat(alerts).isEmpty();
     }
+
+    @Test
+    void evaluate_highAvgWait_shouldGenerateP1Alert() {
+        TerminalStatusDto status = new TerminalStatusDto();
+        status.setTerminalId("T004");
+        status.setTimestamp(System.currentTimeMillis());
+        status.setStatus("online");
+        TerminalStatusDto.HardwareStatus hw = new TerminalStatusDto.HardwareStatus();
+        hw.setPrinter("ok");
+        hw.setCardReader("ok");
+        hw.setScreen("ok");
+        status.setHardware(hw);
+        TerminalStatusDto.QueueStatus qs = new TerminalStatusDto.QueueStatus();
+        qs.setDepth(5);
+        qs.setAvgWaitMs(35000L);  // > 30000ms threshold
+        status.setQueue(qs);
+
+        List<AlertDto> alerts = engine.evaluate(status);
+
+        assertThat(alerts).hasSize(1);
+        assertThat(alerts.get(0).getLevel()).isEqualTo("P1");
+        assertThat(alerts.get(0).getType()).isEqualTo("BUSINESS");
+    }
 }

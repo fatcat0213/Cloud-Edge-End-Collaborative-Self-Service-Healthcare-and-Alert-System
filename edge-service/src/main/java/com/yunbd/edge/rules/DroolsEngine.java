@@ -3,6 +3,7 @@ package com.yunbd.edge.rules;
 import com.yunbd.common.dto.AlertDto;
 import com.yunbd.common.dto.TerminalStatusDto;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
+@Component
 public class DroolsEngine {
     private final KieContainer kieContainer;
 
