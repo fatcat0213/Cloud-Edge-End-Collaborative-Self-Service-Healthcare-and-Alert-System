@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flink-anomaly-detection
+  namespace: yunbianduan-cloud
+  labels:
+    app: flink-anomaly-detection
+    component: flink-jobs
+spec:
+  template:
+    metadata:
+      labels:
+        app: flink-anomaly-detection
+    spec:
+      containers:
+        - name: flink-job
+          image: flink:1.18.1-java17
+          command:
+            - "java"
+            - "-cp"
+            - "/opt/flink/usrlib/flink-jobs.jar"
+            - "com.yunbd.flink.TransactionSuccessRateJob"
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka:9092"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          volumeMounts:
+            - name: flink-jar
+              mountPath: /opt/flink/usrlib
+      volumes:
+        - name: flink-jar
+          # Use emptyDir for demo; replace with ConfigMap or PVC in production
+          emptyDir: {}
+      restartPolicy: OnFailure
