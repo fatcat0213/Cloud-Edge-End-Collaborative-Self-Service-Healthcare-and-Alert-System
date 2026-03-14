@@ -1,0 +1,14 @@
+server:
+  port: 8084
+spring:
+  application:
+    name: queue-service
+  datasource:
+    url: ${DB_URL:jdbc:mysql://mysql:3306/yunbianduan?useSSL=false&serverTimezone=UTC}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: none
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
