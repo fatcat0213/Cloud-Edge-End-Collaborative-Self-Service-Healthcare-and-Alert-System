@@ -18,6 +18,8 @@ class RegistrationControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"patientId\":\"P001\",\"deptCode\":\"NEU\",\"date\":\"2026-03-12\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.registrationId").isNotEmpty());
+            .andExpect(jsonPath("$.registrationId").isNotEmpty())
+            .andExpect(jsonPath("$.patientId").value("P001"))
+            .andExpect(jsonPath("$.status").value("PENDING"));
     }
 }
