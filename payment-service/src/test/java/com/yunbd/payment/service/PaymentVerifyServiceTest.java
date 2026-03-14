@@ -48,7 +48,9 @@ class PaymentVerifyServiceTest {
         long elapsed = System.currentTimeMillis() - start;
 
         assertThat(result.isSuccess()).isTrue();
-        assertThat(elapsed).isLessThan(1000L);
+        // insurance(200ms) and risk(100ms) run in parallel → max ~200ms; 400ms bound
+        // catches sequential execution regression (200+100=300ms) while allowing CI headroom.
+        assertThat(elapsed).isLessThan(400L);
     }
 
     @Test

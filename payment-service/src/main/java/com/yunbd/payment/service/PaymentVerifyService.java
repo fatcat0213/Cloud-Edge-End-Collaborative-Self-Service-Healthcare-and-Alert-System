@@ -30,6 +30,9 @@ public class PaymentVerifyService {
 
             CompletableFuture<Boolean> riskFuture = riskCheckService.checkAsync(req);
 
+            // orTimeout(400ms) converts to null on timeout via exceptionally handler.
+            // Outer get(500ms) is a safety net for the handler itself; normal path
+            // resolves well within 400ms + handler overhead.
             Boolean insuranceOk = insuranceFuture.get(500, TimeUnit.MILLISECONDS);
             Boolean riskOk = riskFuture.get(200, TimeUnit.MILLISECONDS);
 
