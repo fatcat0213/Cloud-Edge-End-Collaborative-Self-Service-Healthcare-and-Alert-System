@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: terminal-simulator
+  namespace: yunbianduan-cloud
+spec:
+  template:
+    spec:
+      containers:
+        - name: terminal-simulator
+          image: yunbd/simulator:latest
+          env:
+            - name: MQTT_BROKER_HOST
+              value: "mosquitto.yunbianduan-edge"
+            - name: MQTT_BROKER_PORT
+              value: "1883"
+            - name: TERMINAL_COUNT
+              value: "5"
+            - name: PUBLISH_INTERVAL_MS
+              value: "1000"
+            - name: HMAC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: terminal-secret
+                  key: hmac-secret
+      restartPolicy: Never
+  backoffLimit: 1
