@@ -8,6 +8,7 @@ import com.yunbd.edge.rules.DroolsEngine;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -43,7 +44,7 @@ public class MqttSubscriber {
             @Override
             public void messageArrived(String topic, MqttMessage message) {
                 try {
-                    String json = new String(message.getPayload());
+                    String json = new String(message.getPayload(), StandardCharsets.UTF_8);
                     TerminalStatusDto status = mapper.readValue(json, TerminalStatusDto.class);
                     // HMAC verification: strip hmac field, re-serialize, verify
                     String receivedHmac = status.getHmac();
@@ -57,7 +58,7 @@ public class MqttSubscriber {
                     List<AlertDto> alerts = droolsEngine.evaluate(status);
                     alerts.forEach(alertHandler);
                 } catch (Exception e) {
-                    log.error("Message processing error: {}", e.getMessage());
+                    log.error("Message processing error on topic {}", topic, e);
                 }
             }
 

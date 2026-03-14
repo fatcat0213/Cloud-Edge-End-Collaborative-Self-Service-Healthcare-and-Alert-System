@@ -2,6 +2,7 @@ package com.yunbd.edge.mqtt;
 
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.client.mqttv3.*;
+import java.nio.charset.StandardCharsets;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 @Slf4j
@@ -27,7 +28,7 @@ public class MqttPublisher {
         if (client == null || !client.isConnected()) {
             throw new IllegalStateException("Publisher not connected; call connect() first");
         }
-        MqttMessage msg = new MqttMessage(payload.getBytes());
+        MqttMessage msg = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
         msg.setQos(1);
         client.publish(topic, msg).waitForCompletion(3000);
     }
