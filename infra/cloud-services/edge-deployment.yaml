@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-service
+  namespace: yunbianduan-cloud
+  labels:
+    app: edge-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: edge-service
+  template:
+    metadata:
+      labels:
+        app: edge-service
+    spec:
+      containers:
+      - name: edge-service
+        image: yunbd/edge-service:latest
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        - name: MQTT_BROKER_HOST
+          value: "mosquitto.yunbianduan-edge"
+        - name: MQTT_BROKER_PORT
+          value: "1883"
+        - name: HMAC_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: terminal-secret
+              key: hmac-secret
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-service
+  namespace: yunbianduan-cloud
+  labels:
+    app: edge-service
+spec:
+  type: ClusterIP
+  selector:
+    app: edge-service
+  ports: []
