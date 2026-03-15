@@ -58,7 +58,7 @@
 - 在 `src/styles/variables.css` 中定义 CSS 自定义属性（设计 token），如 `--bg-primary`、`--text-primary`、`--border-color` 等
 - `main.js` 全局引入该文件
 - 各组件 `<style scoped>` 中用 `var(--bg-primary)` 替换硬编码色值
-- Element Plus 主题通过 `src/styles/element-override.scss` 覆盖 SCSS 变量（`$color-primary` 等）
+- Element Plus 主题通过 `src/styles/element-override.css` 覆盖 CSS 自定义属性（`--el-color-primary` 等），**无需安装 sass**，与 CSS token 策略一致
 
 白色主题色值参考：
 
@@ -119,7 +119,7 @@
 每张卡片左侧有色条，数字大字显示，下方标注趋势（↑↓）。
 
 **第二行：图表区（左右分栏）**
-- 左：告警事件时间线折线图（以最近 20 条告警为数据点，X 轴为时间戳，Y 轴为告警级别数值；前端直接使用 `alerts.js` store 数据，无需额外聚合逻辑）
+- 左：告警事件时间线折线图（以最近 20 条告警为数据点，X 轴为时间戳；Y 轴使用**两条独立二值系列**：P0 系列（匹配时值为 1，否则为 0）和 P1 系列（同上），两条线各自独立渲染，用颜色区分级别；前端直接使用 `alerts.js` store 数据，无需额外聚合逻辑）
 - 右：终端状态分布饼图（在线 / 降级 / 离线）
 
 **第三行：最近告警表**
@@ -158,7 +158,7 @@
 
 终端列表采用**前端静态定义 + 告警驱动状态更新**的方式（有意为之，适合演示场景）：
 
-- `terminals.js` store 中预定义终端列表（T001–T020，含 ID 和位置名），这是系统已知的固定终端集合
+- `terminals.js` store 中预定义终端列表（T001–T020，含 ID 和位置名），这是系统已知的固定终端集合（现有代码仅有 T001–T005，实现时需扩展至 20 台）
 - 每 5s 拉取 `GET /api/v1/alerts`，解析告警消息更新对应终端的状态（在线 / 降级 / 离线）和硬件字段
 - 无告警的终端默认显示为"在线"
 
@@ -330,7 +330,7 @@ frontend/src/
 │   ├── simulator.js          # 新增
 │   └── stats.js              # 新增
 ├── components/
-│   ├── MainLayout.vue        # 改为顶部导航
+│   ├── MainLayout.vue        # 重写：左侧菜单→顶部 Tab 导航，更新 pageTitles 映射（含新增的 demo 路由），更新轮询生命周期调用
 │   └── FlowDiagram.vue       # 新增，架构流向图动画组件
 └── views/
     ├── LoginView.vue          # 新增
