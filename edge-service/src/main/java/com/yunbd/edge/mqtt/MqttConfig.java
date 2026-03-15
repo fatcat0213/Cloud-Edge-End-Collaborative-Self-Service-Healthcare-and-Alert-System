@@ -1,5 +1,6 @@
 package com.yunbd.edge.mqtt;
 
+import com.yunbd.edge.AlertStore;
 import com.yunbd.edge.rules.DroolsEngine;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -7,10 +8,6 @@ import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Wires MqttSubscriber into the Spring lifecycle so it starts with the application
- * and shuts down cleanly on context close.
- */
 @Slf4j
 @Configuration
 public class MqttConfig {
@@ -22,10 +19,13 @@ public class MqttConfig {
     private int brokerPort;
 
     @Bean
-    public SmartLifecycle mqttSubscriberLifecycle(DroolsEngine droolsEngine) {
+    public SmartLifecycle mqttSubscriberLifecycle(DroolsEngine droolsEngine, AlertStore alertStore) {
         MqttSubscriber subscriber = new MqttSubscriber(brokerHost, brokerPort, droolsEngine,
-            alert -> log.info("Alert generated: level={} type={} terminal={}",
-                alert.getLevel(), alert.getType(), alert.getTerminalId()));
+            alert -> {
+                alertStore.add(alert);
+                log.info("Alert generated: level={} type={} terminal={}",
+                    alert.getLevel(), alert.getType(), alert.getTerminalId());
+            });
 
         return new SmartLifecycle() {
             private volatile boolean running = false;

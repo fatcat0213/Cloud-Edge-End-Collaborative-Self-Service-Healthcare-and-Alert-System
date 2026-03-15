@@ -32,6 +32,10 @@ spring:
           uri: http://insurance-service:8085
           predicates:
             - Path=/api/v1/insurance/**
+        - id: edge-service
+          uri: http://edge-service:8090
+          predicates:
+            - Path=/api/v1/alerts/**
       default-filters:
         - name: CircuitBreaker
           args:

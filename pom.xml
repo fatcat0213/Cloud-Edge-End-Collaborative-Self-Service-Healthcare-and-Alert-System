@@ -39,6 +39,14 @@
     </properties>
 
     <build>
+        <plugins>
+            <!-- Repackage all child modules as executable Spring Boot fat JARs.
+                 common, simulator, and flink-jobs override this with <skip>true</skip>. -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
         <pluginManagement>
             <plugins>
                 <plugin>

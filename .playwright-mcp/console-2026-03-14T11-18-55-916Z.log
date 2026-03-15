@@ -1,0 +1,52 @@
+[   17729ms] [WARNING] ElementPlusError: [el-radio] [API] label act as value is about to be deprecated in version 3.0.0, please use value instead.
+For more detail, please visit: https://element-plus.org/en-US/component/radio.html
+
+    at debugWarn (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:9075:37)
+    at watch.immediate (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:10096:14)
+    at callWithErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2351:19)
+    at callWithAsyncErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2358:17)
+    at baseWatchOptions.call (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:3036:47)
+    at job (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2081:18)
+    at watch (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2116:7)
+    at doWatch (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:3064:23)
+    at watch2 (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2997:10)
+    at useDeprecated (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:10095:3) @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:9075
+[   17730ms] [WARNING] ElementPlusError: [el-radio] [API] label act as value is about to be deprecated in version 3.0.0, please use value instead.
+For more detail, please visit: https://element-plus.org/en-US/component/radio.html
+
+    at debugWarn (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:9075:37)
+    at watch.immediate (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:10096:14)
+    at callWithErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2351:19)
+    at callWithAsyncErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2358:17)
+    at baseWatchOptions.call (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:3036:47)
+    at job (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2081:18)
+    at watch (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2116:7)
+    at doWatch (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:3064:23)
+    at watch2 (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2997:10)
+    at useDeprecated (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:10095:3) @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:9075
+[   17731ms] [WARNING] ElementPlusError: [el-radio] [API] label act as value is about to be deprecated in version 3.0.0, please use value instead.
+For more detail, please visit: https://element-plus.org/en-US/component/radio.html
+
+    at debugWarn (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:9075:37)
+    at watch.immediate (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:10096:14)
+    at callWithErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2351:19)
+    at callWithAsyncErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2358:17)
+    at baseWatchOptions.call (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:3036:47)
+    at job (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2081:18)
+    at watch (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2116:7)
+    at doWatch (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:3064:23)
+    at watch2 (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2997:10)
+    at useDeprecated (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:10095:3) @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:9075
+[   17731ms] [WARNING] ElementPlusError: [el-radio] [API] label act as value is about to be deprecated in version 3.0.0, please use value instead.
+For more detail, please visit: https://element-plus.org/en-US/component/radio.html
+
+    at debugWarn (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:9075:37)
+    at watch.immediate (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:10096:14)
+    at callWithErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2351:19)
+    at callWithAsyncErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2358:17)
+    at baseWatchOptions.call (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:3036:47)
+    at job (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2081:18)
+    at watch (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2116:7)
+    at doWatch (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:3064:23)
+    at watch2 (http://localhost:5173/node_modules/.vite/deps/chunk-X3QCHAKX.js?v=521f33ed:2997:10)
+    at useDeprecated (http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:10095:3) @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=6be3efde:9075

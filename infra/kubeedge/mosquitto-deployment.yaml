@@ -15,23 +15,17 @@ spec:
     spec:
       containers:
       - name: mosquitto
-        image: eclipse-mosquitto:2.0
+        image: docker.io/library/eclipse-mosquitto:2.0
+        imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 1883   # MQTT
-        - containerPort: 8883   # MQTT over TLS
+        - containerPort: 1883
         volumeMounts:
         - name: mosquitto-config
           mountPath: /mosquitto/config
-        - name: mosquitto-data
-          mountPath: /mosquitto/data
       volumes:
       - name: mosquitto-config
         configMap:
           name: mosquitto-config
-      - name: mosquitto-data
-        hostPath:
-          path: /data/yunbianduan/mosquitto
-          type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -42,9 +36,6 @@ data:
   mosquitto.conf: |
     listener 1883
     allow_anonymous true
-    persistence true
-    persistence_location /mosquitto/data/
-    log_dest stdout
 ---
 apiVersion: v1
 kind: Service
@@ -52,9 +43,11 @@ metadata:
   name: mosquitto
   namespace: yunbianduan-edge
 spec:
+  type: NodePort
   selector:
     app: mosquitto
   ports:
   - name: mqtt
     port: 1883
     targetPort: 1883
+    nodePort: 31883

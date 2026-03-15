@@ -1,92 +1,72 @@
 [
   {
     "terminalId": "T001",
-    "printerStatus": "PAPER_JAM",
-    "cardReaderStatus": "OK",
-    "networkStatus": "ONLINE",
-    "queueDepth": 5,
-    "avgWaitMs": 10000,
+    "status": "online",
+    "hardware": {"printer": "paper_jam", "cardReader": "ok", "screen": "ok"},
+    "queue": {"depth": 5, "avgWaitMs": 10000},
     "timestamp": 1710000000000
   },
   {
     "terminalId": "T002",
-    "printerStatus": "OK",
-    "cardReaderStatus": "ERROR",
-    "networkStatus": "ONLINE",
-    "queueDepth": 3,
-    "avgWaitMs": 8000,
+    "status": "online",
+    "hardware": {"printer": "ok", "cardReader": "error", "screen": "ok"},
+    "queue": {"depth": 3, "avgWaitMs": 8000},
     "timestamp": 1710000001000
   },
   {
     "terminalId": "T003",
-    "printerStatus": "OK",
-    "cardReaderStatus": "OK",
-    "networkStatus": "OFFLINE",
-    "queueDepth": 0,
-    "avgWaitMs": 0,
+    "status": "offline",
+    "hardware": {"printer": "ok", "cardReader": "ok", "screen": "ok"},
+    "queue": {"depth": 0, "avgWaitMs": 0},
     "timestamp": 1710000002000
   },
   {
     "terminalId": "T004",
-    "printerStatus": "OK",
-    "cardReaderStatus": "OK",
-    "networkStatus": "ONLINE",
-    "queueDepth": 55,
-    "avgWaitMs": 25000,
+    "status": "online",
+    "hardware": {"printer": "ok", "cardReader": "ok", "screen": "ok"},
+    "queue": {"depth": 55, "avgWaitMs": 25000},
     "timestamp": 1710000003000
   },
   {
     "terminalId": "T005",
-    "printerStatus": "OK",
-    "cardReaderStatus": "OK",
-    "networkStatus": "ONLINE",
-    "queueDepth": 10,
-    "avgWaitMs": 35000,
+    "status": "online",
+    "hardware": {"printer": "ok", "cardReader": "ok", "screen": "ok"},
+    "queue": {"depth": 10, "avgWaitMs": 35000},
     "timestamp": 1710000004000
   },
   {
     "terminalId": "T001",
-    "printerStatus": "OK",
-    "cardReaderStatus": "OK",
-    "networkStatus": "ONLINE",
-    "queueDepth": 5,
-    "avgWaitMs": 5000,
+    "status": "online",
+    "hardware": {"printer": "ok", "cardReader": "ok", "screen": "ok"},
+    "queue": {"depth": 5, "avgWaitMs": 5000},
     "timestamp": 1710000005000
   },
   {
     "terminalId": "T002",
-    "printerStatus": "PAPER_JAM",
-    "cardReaderStatus": "ERROR",
-    "networkStatus": "ONLINE",
-    "queueDepth": 2,
-    "avgWaitMs": 3000,
+    "status": "online",
+    "hardware": {"printer": "paper_jam", "cardReader": "error", "screen": "ok"},
+    "queue": {"depth": 2, "avgWaitMs": 3000},
     "timestamp": 1710000006000
   },
   {
     "terminalId": "T003",
-    "printerStatus": "OK",
-    "cardReaderStatus": "OK",
-    "networkStatus": "ONLINE",
-    "queueDepth": 60,
-    "avgWaitMs": 40000,
+    "status": "online",
+    "hardware": {"printer": "ok", "cardReader": "ok", "screen": "ok"},
+    "queue": {"depth": 60, "avgWaitMs": 40000},
     "timestamp": 1710000007000
   },
   {
     "terminalId": "T004",
-    "printerStatus": "OK",
-    "cardReaderStatus": "OK",
-    "networkStatus": "OFFLINE",
-    "queueDepth": 0,
-    "avgWaitMs": 0,
+    "status": "offline",
+    "hardware": {"printer": "ok", "cardReader": "ok", "screen": "ok"},
+    "queue": {"depth": 0, "avgWaitMs": 0},
     "timestamp": 1710000008000
   },
   {
     "terminalId": "T005",
-    "printerStatus": "OK",
-    "cardReaderStatus": "ERROR",
-    "networkStatus": "ONLINE",
-    "queueDepth": 8,
-    "avgWaitMs": 12000,
+    "status": "online",
+    "hardware": {"printer": "ok", "cardReader": "error", "screen": "ok"},
+    "queue": {"depth": 8, "avgWaitMs": 12000},
     "timestamp": 1710000009000
   }
 ]

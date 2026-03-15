@@ -1,0 +1,124 @@
+<h2>前端重新设计 — 整体风格方向</h2>
+<p class="subtitle">现有前端是 GitHub 暗色风格，这次重设计你倾向哪个方向？</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="ops-dark" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0e1a;padding:16px;border-radius:6px;font-family:monospace;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="background:#00d4ff;color:#0a0e1a;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;">ONLINE 18</div>
+        <div style="background:#ff4d4f;color:#fff;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;">P0 ALERT 3</div>
+        <div style="background:#faad14;color:#0a0e1a;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;">P1 WARN 7</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+        <div style="background:#0d1b2a;border:1px solid #00d4ff33;border-radius:4px;padding:8px;text-align:center;">
+          <div style="color:#00d4ff;font-size:20px;font-weight:700;">18</div>
+          <div style="color:#8899aa;font-size:10px;">在线终端</div>
+        </div>
+        <div style="background:#0d1b2a;border:1px solid #ff4d4f33;border-radius:4px;padding:8px;text-align:center;">
+          <div style="color:#ff4d4f;font-size:20px;font-weight:700;">3</div>
+          <div style="color:#8899aa;font-size:10px;">P0 告警</div>
+        </div>
+        <div style="background:#0d1b2a;border:1px solid #52c41a33;border-radius:4px;padding:8px;text-align:center;">
+          <div style="color:#52c41a;font-size:20px;font-weight:700;">98.2%</div>
+          <div style="color:#8899aa;font-size:10px;">支付成功率</div>
+        </div>
+      </div>
+      <div style="background:#0d1b2a;border:1px solid #1a2d3a;border-radius:4px;padding:8px;">
+        <div style="color:#00d4ff;font-size:10px;margin-bottom:6px;">▶ 实时告警流</div>
+        <div style="color:#ff4d4f;font-size:10px;margin-bottom:3px;">● [P0] T003 打印机卡纸 — 02:14:33</div>
+        <div style="color:#faad14;font-size:10px;margin-bottom:3px;">● [P1] T007 队列深度 > 50 — 02:14:21</div>
+        <div style="color:#8899aa;font-size:10px;">● [P2] T012 读卡器超时 — 02:13:55</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 运维大屏风（深蓝科技感）</h3>
+      <p>深蓝/黑底 + 霓虹蓝绿高亮，类 DataV / 大屏指挥中心风格。强调实时状态流、数字冲击力，适合值班室或大屏展示。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="enterprise-light" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f5f7fa;padding:16px;border-radius:6px;">
+      <div style="background:#fff;border-radius:6px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,0.1);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="color:#1a1a2e;font-weight:600;font-size:12px;">☰ 云边端监测系统</span>
+        <div style="display:flex;gap:6px;">
+          <span style="background:#fff2f0;color:#cf1322;padding:2px 8px;border-radius:10px;font-size:10px;border:1px solid #ffa39e;">P0 · 3</span>
+          <span style="background:#fff7e6;color:#d46b08;padding:2px 8px;border-radius:10px;font-size:10px;border:1px solid #ffd591;">P1 · 7</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div style="background:#fff;border-radius:6px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+          <div style="color:#8c8c8c;font-size:10px;margin-bottom:4px;">在线终端</div>
+          <div style="color:#1a1a2e;font-size:22px;font-weight:700;">18 <span style="font-size:11px;color:#52c41a">↑正常</span></div>
+        </div>
+        <div style="background:#fff;border-radius:6px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+          <div style="color:#8c8c8c;font-size:10px;margin-bottom:4px;">支付成功率</div>
+          <div style="color:#1a1a2e;font-size:22px;font-weight:700;">98.2%</div>
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:6px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <div style="color:#595959;font-size:10px;font-weight:600;margin-bottom:6px;">最近告警</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span style="background:#fff2f0;color:#cf1322;padding:1px 6px;border-radius:3px;font-size:9px;">P0</span>
+          <span style="color:#595959;font-size:10px;">T003 打印机卡纸</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="background:#fff7e6;color:#d46b08;padding:1px 6px;border-radius:3px;font-size:9px;">P1</span>
+          <span style="color:#595959;font-size:10px;">T007 队列过深</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 企业管理台风（浅色专业）</h3>
+      <p>白底 + Ant Design 风格，卡片式布局，清晰层次感。类 Grafana Light / 阿里云控制台，适合白天使用、汇报演示、多人操作场景。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="dark-pro" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#141414;padding:16px;border-radius:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="color:#e8e8e8;font-size:12px;font-weight:600;">监测总览</span>
+        <span style="color:#595959;font-size:10px;">2026-03-15 14:33:22</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
+        <div style="background:#1f1f1f;border-radius:6px;padding:8px;border-left:3px solid #1677ff;">
+          <div style="color:#8c8c8c;font-size:9px;">在线</div>
+          <div style="color:#e8e8e8;font-size:18px;font-weight:700;">18</div>
+        </div>
+        <div style="background:#1f1f1f;border-radius:6px;padding:8px;border-left:3px solid #ff4d4f;">
+          <div style="color:#8c8c8c;font-size:9px;">P0告警</div>
+          <div style="color:#ff4d4f;font-size:18px;font-weight:700;">3</div>
+        </div>
+        <div style="background:#1f1f1f;border-radius:6px;padding:8px;border-left:3px solid #faad14;">
+          <div style="color:#8c8c8c;font-size:9px;">P1告警</div>
+          <div style="color:#faad14;font-size:18px;font-weight:700;">7</div>
+        </div>
+        <div style="background:#1f1f1f;border-radius:6px;padding:8px;border-left:3px solid #52c41a;">
+          <div style="color:#8c8c8c;font-size:9px;">成功率</div>
+          <div style="color:#52c41a;font-size:18px;font-weight:700;">98%</div>
+        </div>
+      </div>
+      <div style="background:#1f1f1f;border-radius:6px;padding:8px;">
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2a2a2a;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span style="width:6px;height:6px;background:#ff4d4f;border-radius:50%;display:inline-block;"></span>
+            <span style="color:#bfbfbf;font-size:10px;">T003 · 打印机卡纸</span>
+          </div>
+          <span style="color:#595959;font-size:10px;">刚刚</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span style="width:6px;height:6px;background:#faad14;border-radius:50%;display:inline-block;"></span>
+            <span style="color:#bfbfbf;font-size:10px;">T007 · 队列过深</span>
+          </div>
+          <span style="color:#595959;font-size:10px;">1分前</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 现代暗色专业风（升级当前）</h3>
+      <p>在现有暗色基础上升级：更精致的排版、更强的信息层次、Ant Design Dark token。保留暗色护眼优势，整体更精练专业，适合长时间值班监控。</p>
+    </div>
+  </div>
+
+</div>

@@ -1,13 +1,13 @@
 package com.yunbd.sim;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yunbd.common.dto.TerminalStatusDto;
 import com.yunbd.common.util.HmacUtil;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Reads anomaly-samples.json and publishes each sample to MQTT.
@@ -25,8 +25,9 @@ public class AnomalyReplayRunner {
         String samplesFile = args.length > 2 ? args[2] : "simulation/anomaly-samples.json";
 
         ObjectMapper mapper = new ObjectMapper();
-        List<Map<String, Object>> samples = mapper.readValue(
-            new File(samplesFile), List.class);
+        List<TerminalStatusDto> samples = mapper.readValue(
+            new File(samplesFile),
+            mapper.getTypeFactory().constructCollectionType(List.class, TerminalStatusDto.class));
 
         MqttAsyncClient client = new MqttAsyncClient(
             "tcp://" + brokerHost + ":" + brokerPort,
@@ -39,16 +40,16 @@ public class AnomalyReplayRunner {
         System.out.printf("Connected to %s:%d, replaying %d samples%n",
             brokerHost, brokerPort, samples.size());
 
-        for (Map<String, Object> sample : samples) {
-            String terminalId = (String) sample.get("terminalId");
-            // Sign: set hmac=null, serialize, compute HMAC
-            sample.put("hmac", null);
+        for (TerminalStatusDto sample : samples) {
+            String terminalId = sample.getTerminalId();
+            // Sign: set hmac=null, serialize (canonical DTO order), compute HMAC
+            sample.setHmac(null);
             String payloadToSign = mapper.writeValueAsString(sample);
             String hmac = HmacUtil.sign(payloadToSign, HMAC_SECRET);
-            sample.put("hmac", hmac);
+            sample.setHmac(hmac);
 
             String json = mapper.writeValueAsString(sample);
-            String topic = "terminal/status/" + terminalId;
+            String topic = "terminal/" + terminalId + "/status";
 
             MqttMessage msg = new MqttMessage(json.getBytes(StandardCharsets.UTF_8));
             msg.setQos(1);

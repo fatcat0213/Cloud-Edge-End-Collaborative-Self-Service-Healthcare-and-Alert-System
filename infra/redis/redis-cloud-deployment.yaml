@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
       - name: redis
-        image: redis:7.2
+        image: redis:7-alpine
+        imagePullPolicy: Never
         # Dev note: password is resolved from env-var substitution into the command argument.
         # The resolved value will appear in /proc/1/cmdline on the node. Acceptable for
         # dev; production should use a redis.conf Secret volume instead.
@@ -25,7 +26,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: redis-secret
-              key: password
+              key: redis-password
         ports:
         - containerPort: 6379
 ---
