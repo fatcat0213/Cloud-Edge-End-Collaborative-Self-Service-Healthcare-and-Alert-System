@@ -1,0 +1,11 @@
+:root {
+  --el-color-primary: #1677ff;
+  --el-color-danger: #ff4d4f;
+  --el-color-warning: #faad14;
+  --el-color-success: #52c41a;
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f5f7fa;
+  --el-text-color-primary: #1a1a2e;
+  --el-text-color-regular: #595959;
+  --el-border-color: #e8e8e8;
+}

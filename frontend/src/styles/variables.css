@@ -1,0 +1,13 @@
+:root {
+  --bg-primary: #ffffff;
+  --bg-page: #f5f7fa;
+  --bg-header: #001529;
+  --text-primary: #1a1a2e;
+  --text-secondary: #595959;
+  --border-color: #e8e8e8;
+  --color-danger: #ff4d4f;
+  --color-warning: #faad14;
+  --color-success: #52c41a;
+  --color-primary: #1677ff;
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.08);
+}
