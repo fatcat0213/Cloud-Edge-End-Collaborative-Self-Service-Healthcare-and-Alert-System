@@ -1,96 +1,228 @@
 <template>
-  <div>
-    <div class="panel" style="max-width:560px">
-      <div class="panel-header">支付核验</div>
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="120px" style="margin-top:20px">
-        <el-form-item label="患者ID" prop="patientId">
-          <el-input v-model="form.patientId" placeholder="如 P001" />
-        </el-form-item>
-        <el-form-item label="挂号单号" prop="registrationId">
-          <el-input v-model="form.registrationId" placeholder="如 REG-..." />
-        </el-form-item>
-        <el-form-item label="金额（元）" prop="amount">
-          <el-input-number v-model="form.amount" :min="0.01" :precision="2" style="width:100%" />
-        </el-form-item>
-        <el-form-item label="幂等键" prop="idempotencyKey">
-          <el-input v-model="form.idempotencyKey" placeholder="唯一请求标识，重试时保持不变">
-            <template #append>
-              <el-button @click="genKey">生成</el-button>
-            </template>
-          </el-input>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="submit" :loading="loading">发起核验</el-button>
-          <el-button @click="reset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </div>
+  <div class="payment-page">
+    <el-row :gutter="24">
+      <!-- Left: Form -->
+      <el-col :span="10">
+        <div class="form-card">
+          <div class="form-title">支付验证</div>
+          <el-form label-position="top">
+            <el-form-item label="患者 ID">
+              <el-input
+                v-model="form.patientId"
+                placeholder="请输入患者 ID"
+              />
+            </el-form-item>
+            <el-form-item label="挂号 ID">
+              <el-input
+                v-model="form.regId"
+                placeholder="请输入挂号 ID"
+              />
+            </el-form-item>
+            <el-form-item label="支付金额 (元)">
+              <el-input
+                v-model="form.amount"
+                placeholder="请输入金额"
+                type="number"
+              />
+            </el-form-item>
+            <el-form-item label="支付 ID">
+              <div style="display: flex; gap: 8px">
+                <el-input
+                  v-model="form.payId"
+                  placeholder="自动生成或手动输入"
+                />
+                <el-button @click="generatePayId">生成</el-button>
+              </div>
+            </el-form-item>
+            <el-form-item>
+              <el-button
+                type="primary"
+                :loading="loading"
+                style="width: 100%"
+                @click="submit"
+              >提交支付</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-col>
 
-    <div class="panel" style="margin-top:16px;max-width:560px" v-if="results.length > 0">
-      <div class="panel-header">核验记录（同一幂等键多次请求测试）</div>
-      <div class="result-list">
-        <div class="result-item" v-for="(r, i) in results" :key="i" :class="r.reason === 'cached' ? 'cached' : 'fresh'">
-          <div class="result-top">
-            <el-tag :type="r.success ? 'success' : 'danger'" effect="dark">{{ r.success ? '成功' : '失败' }}</el-tag>
-            <el-tag :type="r.reason === 'cached' ? 'info' : 'primary'" plain size="small">{{ r.reason === 'cached' ? '命中缓存' : '首次处理' }}</el-tag>
-            <span class="result-time">第 {{ i + 1 }} 次</span>
-          </div>
-          <div class="result-detail">
-            自费兜底：{{ r.fallbackToSelfPay ? '是' : '否' }}
+      <!-- Right: Results History -->
+      <el-col :span="14">
+        <div class="results-card">
+          <div class="form-title">支付记录</div>
+          <el-empty v-if="!results.length" description="提交支付后查看结果" />
+          <div v-else class="results-list">
+            <div
+              v-for="r in results"
+              :key="r.payId"
+              class="result-item"
+            >
+              <div class="result-header">
+                <div class="result-meta">
+                  <span class="result-pay-id">{{ r.payId }}</span>
+                  <el-tag
+                    :type="r.success ? 'success' : 'danger'"
+                    size="small"
+                  >{{ r.success ? '支付成功' : '支付失败' }}</el-tag>
+                </div>
+                <div class="result-tags">
+                  <el-tag
+                    v-if="r.cacheHit"
+                    type="info"
+                    size="small"
+                  >命中缓存</el-tag>
+                  <el-tag
+                    v-if="r.fallbackToSelfPay"
+                    type="warning"
+                    size="small"
+                  >回退自费</el-tag>
+                </div>
+              </div>
+              <div class="result-body">
+                <span class="result-patient">患者: {{ r.patientId }}</span>
+                <span class="result-amount">金额: ¥{{ r.amount }}</span>
+                <span v-if="r.reason" class="result-reason">{{ r.reason }}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { verifyPayment } from '../api'
+import { pay } from '../api'
 
-const formRef = ref()
+const form = ref({
+  patientId: '',
+  regId: '',
+  amount: '',
+  payId: ''
+})
+
 const loading = ref(false)
 const results = ref([])
-const form = reactive({ patientId: 'P001', registrationId: 'REG-001', amount: 150.00, idempotencyKey: '' })
-const rules = {
-  patientId: [{ required: true, message: '必填' }],
-  registrationId: [{ required: true, message: '必填' }],
-  idempotencyKey: [{ required: true, message: '必填' }],
-}
 
-function genKey() {
-  form.idempotencyKey = 'PAY-' + Date.now()
+function generatePayId() {
+  form.value.payId = `PAY-${Date.now()}`
 }
 
 async function submit() {
-  await formRef.value.validate()
+  if (!form.value.patientId || !form.value.regId || !form.value.amount) {
+    ElMessage.warning('请填写患者 ID、挂号 ID 和支付金额')
+    return
+  }
+  if (!form.value.payId) {
+    generatePayId()
+  }
   loading.value = true
   try {
-    const res = await verifyPayment({ ...form })
-    results.value.unshift(res.data)
-    ElMessage.success(res.data.reason === 'cached' ? '幂等命中缓存' : '核验通过')
-  } catch (e) {
-    ElMessage.error('核验失败')
+    const res = await pay(form.value)
+    results.value.unshift({
+      payId: form.value.payId,
+      patientId: form.value.patientId,
+      regId: form.value.regId,
+      amount: form.value.amount,
+      success: res.data.success ?? true,
+      cacheHit: res.data.cacheHit ?? false,
+      fallbackToSelfPay: res.data.fallbackToSelfPay ?? false,
+      reason: res.data.reason || ''
+    })
+    ElMessage.success(results.value[0].success ? '支付成功' : '支付处理完成')
+  } catch {
+    results.value.unshift({
+      payId: form.value.payId,
+      patientId: form.value.patientId,
+      regId: form.value.regId,
+      amount: form.value.amount,
+      success: false,
+      cacheHit: false,
+      fallbackToSelfPay: false,
+      reason: '支付请求失败'
+    })
+    ElMessage.error('支付失败，请重试')
   } finally {
     loading.value = false
   }
 }
-
-function reset() {
-  formRef.value.resetFields()
-  results.value = []
-}
 </script>
 
 <style scoped>
-.panel { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 24px; }
-.panel-header { font-size: 15px; font-weight: 600; color: #e6edf3; border-bottom: 1px solid #21262d; padding-bottom: 12px; }
-.result-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
-.result-item { padding: 12px 16px; border-radius: 8px; border: 1px solid #21262d; }
-.result-item.cached { border-left: 3px solid #8b949e; background: #1c2128; }
-.result-item.fresh { border-left: 3px solid #3fb950; background: #1c2128; }
-.result-top { display: flex; align-items: center; gap: 8px; }
-.result-time { margin-left: auto; font-size: 12px; color: #8b949e; }
-.result-detail { font-size: 12px; color: #8b949e; margin-top: 6px; }
+.payment-page {
+  padding: 20px;
+}
+
+.form-card,
+.results-card {
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-card);
+  border-radius: 8px;
+  padding: 24px;
+  min-height: 420px;
+}
+
+.form-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-item {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 12px 16px;
+  transition: border-color 0.2s;
+}
+
+.result-item:hover {
+  border-color: var(--color-primary);
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.result-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-tags {
+  display: flex;
+  gap: 6px;
+}
+
+.result-pay-id {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.result-body {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.result-reason {
+  color: var(--color-warning);
+}
 </style>

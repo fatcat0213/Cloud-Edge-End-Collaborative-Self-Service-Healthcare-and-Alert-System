@@ -1,40 +1,84 @@
 <template>
-  <div>
-    <div class="panel" style="max-width:500px">
-      <div class="panel-header">排队实时查询</div>
-      <el-form label-width="100px" style="margin-top:20px">
-        <el-form-item label="科室">
-          <el-select v-model="deptCode" placeholder="选择科室" style="width:100%">
-            <el-option label="神经内科 NEU" value="NEU" />
-            <el-option label="心血管科 CARD" value="CARD" />
-            <el-option label="骨科 ORTH" value="ORTH" />
-            <el-option label="内科 INT" value="INT" />
-            <el-option label="急诊科 EMRG" value="EMRG" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="query" :loading="loading">查询</el-button>
-        </el-form-item>
-      </el-form>
-    </div>
+  <div class="queue-page">
+    <el-row :gutter="24">
+      <!-- Left: Query Form -->
+      <el-col :span="8">
+        <div class="form-card">
+          <div class="form-title">排队查询</div>
+          <el-form label-position="top">
+            <el-form-item label="科室">
+              <el-select
+                v-model="selectedDept"
+                placeholder="请选择科室"
+                style="width: 100%"
+              >
+                <el-option label="神经内科" value="NEU" />
+                <el-option label="心血管科" value="CARD" />
+                <el-option label="骨科" value="ORTH" />
+                <el-option label="内科" value="INT" />
+                <el-option label="急诊" value="EMRG" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button
+                type="primary"
+                :loading="loading"
+                style="width: 100%"
+                @click="query"
+              >查询排队</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-col>
 
-    <div class="panel result-panel" v-if="result" style="margin-top:16px;max-width:500px">
-      <div class="panel-header">{{ result.deptCode }} 排队情况</div>
-      <el-row :gutter="16" style="margin-top:20px">
-        <el-col :span="12">
-          <div class="stat-card">
-            <div class="stat-num" :style="{ color: result.depth > 50 ? '#f85149' : '#58a6ff' }">{{ result.depth }}</div>
-            <div class="stat-label">当前排队人数</div>
-          </div>
-        </el-col>
-        <el-col :span="12">
-          <div class="stat-card">
-            <div class="stat-num" :style="{ color: result.avgWaitMs > 30000 ? '#e3b341' : '#3fb950' }">{{ (result.avgWaitMs / 60000).toFixed(1) }} min</div>
-            <div class="stat-label">预计等待时间</div>
-          </div>
-        </el-col>
-      </el-row>
-    </div>
+      <!-- Right: Result -->
+      <el-col :span="16">
+        <div class="result-card">
+          <div class="form-title">排队情况</div>
+          <el-empty v-if="!result" description="请选择科室并查询" />
+          <template v-else>
+            <div class="queue-stats">
+              <div class="stat-block">
+                <div class="stat-label">当前排队人数</div>
+                <span
+                  class="stat-number"
+                  :style="{ color: result.depth > 50 ? 'var(--color-danger)' : 'var(--color-primary)' }"
+                >{{ result.depth }}</span>
+                <span class="stat-unit">人</span>
+              </div>
+              <div class="stat-block">
+                <div class="stat-label">预计等待时间</div>
+                <span
+                  class="stat-number"
+                  :style="{ color: result.avgWaitMs > 30000 ? 'var(--color-warning)' : 'var(--color-success)' }"
+                >{{ formatWait(result.avgWaitMs) }}</span>
+              </div>
+            </div>
+
+            <div class="progress-section">
+              <div class="progress-label">
+                队列负载
+                <el-tag
+                  v-if="result.depth > 50"
+                  type="danger"
+                  size="small"
+                  style="margin-left: 8px"
+                >超载预警</el-tag>
+              </div>
+              <el-progress
+                :percentage="Math.min(result.depth / 100 * 100, 100)"
+                :status="result.depth > 50 ? 'exception' : ''"
+                :stroke-width="16"
+              />
+            </div>
+
+            <div class="dept-info">
+              <el-tag type="info" size="small">{{ result.deptName || selectedDept }}</el-tag>
+            </div>
+          </template>
+        </div>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
@@ -43,18 +87,31 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getQueue } from '../api'
 
-const deptCode = ref('NEU')
+const selectedDept = ref('')
 const loading = ref(false)
 const result = ref(null)
 
+function formatWait(ms) {
+  if (!ms) return '0s'
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`
+  return `${(ms / 60000).toFixed(1)}min`
+}
+
 async function query() {
-  if (!deptCode.value) return ElMessage.warning('请选择科室')
+  if (!selectedDept.value) {
+    ElMessage.warning('请选择科室')
+    return
+  }
   loading.value = true
   try {
-    const res = await getQueue(deptCode.value)
-    result.value = res.data
-  } catch (e) {
-    ElMessage.error('查询失败：' + (e.message))
+    const res = await getQueue(selectedDept.value)
+    result.value = {
+      depth: res.data.depth ?? 0,
+      avgWaitMs: res.data.avgWaitMs ?? 0,
+      deptName: res.data.deptName || selectedDept.value
+    }
+  } catch {
+    ElMessage.error('查询失败，请重试')
   } finally {
     loading.value = false
   }
@@ -62,9 +119,70 @@ async function query() {
 </script>
 
 <style scoped>
-.panel { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 24px; }
-.panel-header { font-size: 15px; font-weight: 600; color: #e6edf3; border-bottom: 1px solid #21262d; padding-bottom: 12px; }
-.stat-card { background: #1c2128; border-radius: 8px; padding: 20px; text-align: center; }
-.stat-num { font-size: 36px; font-weight: 700; }
-.stat-label { font-size: 13px; color: #8b949e; margin-top: 6px; }
+.queue-page {
+  padding: 20px;
+}
+
+.form-card,
+.result-card {
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-card);
+  border-radius: 8px;
+  padding: 24px;
+  min-height: 340px;
+}
+
+.form-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.queue-stats {
+  display: flex;
+  gap: 40px;
+  margin-bottom: 24px;
+}
+
+.stat-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.stat-number {
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-unit {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.progress-section {
+  margin-bottom: 20px;
+}
+
+.progress-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.dept-info {
+  margin-top: 8px;
+}
 </style>
