@@ -1,177 +1,235 @@
 <template>
-  <el-container class="layout">
-    <!-- Sidebar -->
-    <el-aside width="220px" class="sidebar">
-      <div class="logo">
-        <el-icon size="24" color="#409eff"><Monitor /></el-icon>
-        <span>云边端监测系统</span>
-      </div>
-      <el-menu
-        :default-active="route.path"
-        router
-        background-color="#161b22"
-        text-color="#8b949e"
-        active-text-color="#58a6ff"
-        class="sidebar-menu"
-      >
-        <el-menu-item index="/">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>系统总览</span>
-        </el-menu-item>
-        <el-menu-item index="/terminals">
-          <el-icon><Monitor /></el-icon>
-          <span>终端监控</span>
-          <el-badge v-if="terminalsStore.offlineCount > 0" :value="terminalsStore.offlineCount" type="danger" class="menu-badge" />
-        </el-menu-item>
-        <el-menu-item index="/alerts">
-          <el-icon><Bell /></el-icon>
-          <span>告警中心</span>
-          <el-badge v-if="alertsStore.p0Count > 0" :value="alertsStore.p0Count" type="danger" class="menu-badge" />
-        </el-menu-item>
-        <el-divider style="border-color:#30363d; margin: 8px 0" />
-        <div class="menu-group-label">业务操作</div>
-        <el-menu-item index="/registration">
-          <el-icon><UserFilled /></el-icon>
-          <span>挂号登记</span>
-        </el-menu-item>
-        <el-menu-item index="/queue">
-          <el-icon><List /></el-icon>
-          <span>排队查询</span>
-        </el-menu-item>
-        <el-menu-item index="/insurance">
-          <el-icon><Wallet /></el-icon>
-          <span>医保核验</span>
-        </el-menu-item>
-        <el-menu-item index="/payment">
-          <el-icon><CreditCard /></el-icon>
-          <span>支付核验</span>
-        </el-menu-item>
-      </el-menu>
-      <div class="sidebar-footer">
-        <div class="status-dot online"></div>
-        <span>系统运行中</span>
-      </div>
-    </el-aside>
+  <el-container direction="vertical" style="height: 100vh">
+    <!-- Top navigation header -->
+    <el-header height="64px" class="top-header">
+      <div class="header-inner">
+        <!-- Logo -->
+        <div class="logo">
+          <el-icon size="22" style="color: #1677ff"><Monitor /></el-icon>
+          <span class="logo-text">云边端监测</span>
+        </div>
 
-    <!-- Main -->
-    <el-container direction="vertical" class="main-container">
-      <el-header class="topbar">
-        <div class="topbar-left">
-          <span class="page-title">{{ pageTitle }}</span>
-        </div>
-        <div class="topbar-right">
-          <el-tag v-if="alertsStore.p0Count > 0" type="danger" effect="dark" style="margin-right:8px">
-            P0告警 {{ alertsStore.p0Count }}
+        <!-- Main navigation tabs -->
+        <el-menu
+          mode="horizontal"
+          :default-active="activeMenu"
+          class="top-nav"
+          @select="handleMenuSelect"
+        >
+          <el-menu-item index="dashboard">总览</el-menu-item>
+          <el-menu-item index="terminals">终端监控</el-menu-item>
+          <el-menu-item index="alerts">
+            <el-badge
+              :value="alertsStore.p0Count || undefined"
+              :hidden="alertsStore.p0Count === 0"
+              type="danger"
+            >
+              告警中心
+            </el-badge>
+          </el-menu-item>
+
+          <el-menu-item disabled class="nav-divider">|</el-menu-item>
+
+          <el-menu-item index="registration">挂号</el-menu-item>
+          <el-menu-item index="queue">排队</el-menu-item>
+          <el-menu-item index="insurance">医保</el-menu-item>
+          <el-menu-item index="payment">支付</el-menu-item>
+          <el-menu-item index="demo">架构演示</el-menu-item>
+        </el-menu>
+
+        <!-- Right: alert summary + user + logout -->
+        <div class="header-right">
+          <el-tag
+            v-if="alertsStore.p0Count > 0"
+            type="danger"
+            effect="dark"
+            size="small"
+          >
+            P0 {{ alertsStore.p0Count }}
           </el-tag>
-          <el-tag v-if="alertsStore.p1Count > 0" type="warning" effect="dark" style="margin-right:8px">
-            P1告警 {{ alertsStore.p1Count }}
+          <el-tag
+            v-if="alertsStore.p1Count > 0"
+            type="warning"
+            effect="dark"
+            size="small"
+            style="margin-left: 6px"
+          >
+            P1 {{ alertsStore.p1Count }}
           </el-tag>
-          <span class="time">{{ currentTime }}</span>
+          <span class="username">{{ authStore.user?.name || '管理员' }}</span>
+          <el-button
+            type="text"
+            size="small"
+            class="logout-btn"
+            @click="logout"
+          >
+            退出
+          </el-button>
         </div>
-      </el-header>
-      <el-main class="main-content">
-        <router-view />
-      </el-main>
-    </el-container>
+      </div>
+    </el-header>
+
+    <!-- Main content area -->
+    <el-main class="main-content">
+      <router-view />
+    </el-main>
   </el-container>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Monitor } from '@element-plus/icons-vue'
 import { useAlertsStore } from '../stores/alerts'
 import { useTerminalsStore } from '../stores/terminals'
-import { watch } from 'vue'
+import { useStatsStore } from '../stores/stats'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const router = useRouter()
 const alertsStore = useAlertsStore()
 const terminalsStore = useTerminalsStore()
-const currentTime = ref('')
+const statsStore = useStatsStore()
+const authStore = useAuthStore()
 
 const pageTitles = {
-  '/': '系统总览',
-  '/terminals': '终端监控',
-  '/alerts': '告警中心',
-  '/registration': '挂号登记',
-  '/queue': '排队查询',
-  '/insurance': '医保核验',
-  '/payment': '支付核验',
-}
-const pageTitle = computed(() => pageTitles[route.path] || '云边端监测系统')
-
-let clockTimer = null
-function updateTime() {
-  currentTime.value = new Date().toLocaleString('zh-CN', { hour12: false })
+  dashboard: '总览',
+  terminals: '终端监控',
+  alerts: '告警中心',
+  demo: '架构演示',
+  registration: '挂号预约',
+  queue: '排队查询',
+  insurance: '医保验证',
+  payment: '支付验证'
 }
 
-watch(() => alertsStore.alerts, (alerts) => {
-  terminalsStore.applyAlerts(alerts)
-}, { deep: true })
+// Derive active menu key from current route path segment
+const activeMenu = computed(() => {
+  const segment = route.path.split('/').filter(Boolean)[0]
+  return segment || 'dashboard'
+})
+
+function handleMenuSelect(key) {
+  if (key && pageTitles[key]) {
+    router.push('/' + key)
+  }
+}
+
+function logout() {
+  authStore.logout()
+  router.push('/login')
+}
+
+// Watch alerts and sync to terminals store
+watch(
+  () => alertsStore.alerts,
+  (alerts) => {
+    terminalsStore.applyAlerts(alerts)
+  },
+  { deep: true }
+)
 
 onMounted(() => {
   alertsStore.startPolling(5000)
-  updateTime()
-  clockTimer = setInterval(updateTime, 1000)
+  statsStore.startPolling(10000)
+  // Initial sync
+  terminalsStore.applyAlerts(alertsStore.alerts)
 })
+
 onUnmounted(() => {
   alertsStore.stopPolling()
-  clearInterval(clockTimer)
+  statsStore.stopPolling()
 })
 </script>
 
 <style scoped>
-.layout { height: 100vh; overflow: hidden; }
-.sidebar {
-  background: #161b22;
-  border-right: 1px solid #21262d;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+.top-header {
+  background: var(--bg-header, #001529);
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  z-index: 100;
 }
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 24px;
+}
+
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 18px 20px;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-right: 32px;
+}
+
+.logo-text {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.top-nav {
+  flex: 1;
+  background: transparent;
+  border-bottom: none;
+  height: 64px;
+}
+
+.top-nav :deep(.el-menu-item) {
+  color: rgba(255, 255, 255, 0.75);
+  height: 64px;
+  line-height: 64px;
+  border-bottom: 3px solid transparent;
   font-size: 14px;
-  font-weight: 600;
-  color: #e6edf3;
-  border-bottom: 1px solid #21262d;
 }
-.sidebar-menu { border-right: none; flex: 1; }
-.sidebar-menu :deep(.el-menu-item) { height: 44px; margin: 2px 8px; border-radius: 6px; }
-.sidebar-menu :deep(.el-menu-item.is-active) { background: #1f2937 !important; }
-.menu-badge { margin-left: auto; }
-.menu-group-label {
-  font-size: 11px;
-  color: #484f58;
-  padding: 4px 20px 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+
+.top-nav :deep(.el-menu-item:hover) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
-.sidebar-footer {
+
+.top-nav :deep(.el-menu-item.is-active) {
+  color: #1677ff !important;
+  background: transparent !important;
+  border-bottom-color: #1677ff;
+}
+
+.nav-divider {
+  cursor: default;
+  color: rgba(255, 255, 255, 0.2) !important;
+  padding: 0 4px !important;
+}
+
+.header-right {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 20px;
-  font-size: 12px;
-  color: #8b949e;
-  border-top: 1px solid #21262d;
+  flex-shrink: 0;
+  margin-left: 24px;
 }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; }
-.status-dot.online { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
-.topbar {
-  height: 56px;
-  background: #161b22;
-  border-bottom: 1px solid #21262d;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
+
+.username {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  margin-left: 8px;
 }
-.page-title { font-size: 16px; font-weight: 600; color: #e6edf3; }
-.topbar-right { display: flex; align-items: center; gap: 8px; }
-.time { font-size: 13px; color: #8b949e; font-variant-numeric: tabular-nums; }
-.main-container { overflow: hidden; }
-.main-content { background: #0d1117; overflow-y: auto; padding: 24px; }
+
+.logout-btn {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.logout-btn:hover {
+  color: #ffffff;
+}
+
+.main-content {
+  background: var(--bg-page, #f5f7fa);
+  padding: 24px;
+  overflow-y: auto;
+}
 </style>
