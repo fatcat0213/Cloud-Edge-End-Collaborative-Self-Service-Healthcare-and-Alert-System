@@ -14,7 +14,7 @@ vi.mock('../../stores/auth', () => ({
 
 // Stub Element Plus components to avoid complex setup
 const stubComponents = {
-  'el-form': { template: '<form @submit.prevent="$emit(\'submit\')"><slot /></form>', emits: ['submit'] },
+  'el-form': { template: '<form @submit="$emit(\'submit\', $event)"><slot /></form>', emits: ['submit'] },
   'el-form-item': { template: '<div><slot /></div>' },
   'el-input': {
     template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
@@ -74,9 +74,9 @@ describe('LoginView', () => {
     await inputs[0].setValue('admin')
     await inputs[1].setValue('admin123')
 
-    // Find and click the login button
-    const btn = wrapper.find('button')
-    await btn.trigger('click')
+    // Find and trigger the form submit (which happens when submit button is clicked)
+    const form = wrapper.find('form')
+    await form.trigger('submit')
     await new Promise(r => setTimeout(r, 0)) // flush promises
 
     expect(mockLogin).toHaveBeenCalledWith('admin', 'admin123')
@@ -90,8 +90,8 @@ describe('LoginView', () => {
     await inputs[0].setValue('bad')
     await inputs[1].setValue('creds')
 
-    const btn = wrapper.find('button')
-    await btn.trigger('click')
+    const form = wrapper.find('form')
+    await form.trigger('submit')
     await new Promise(r => setTimeout(r, 10))
 
     expect(mockLogin).toHaveBeenCalledWith('bad', 'creds')
