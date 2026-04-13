@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudcore
+  namespace: kubeedge
+  labels:
+    app: kubeedge
+    component: cloudcore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubeedge
+      component: cloudcore
+  template:
+    metadata:
+      labels:
+        app: kubeedge
+        component: cloudcore
+    spec:
+      containers:
+        - name: cloudcore
+          image: kubeedge/cloudcore:1.17.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: websocket
+              containerPort: 10000
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/kubeedge/config
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          livenessProbe:
+            tcpSocket:
+              port: 10000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 10000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: cloudcore-configmap
