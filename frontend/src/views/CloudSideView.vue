@@ -257,27 +257,100 @@
     </div>
 
     <!-- Command dispatch dialog -->
-    <el-dialog v-model="showCmdDialog" title="下发命令" width="480px" :close-on-click-modal="false">
-      <el-form label-width="80px">
-        <el-form-item label="目标终端">
-          <el-select v-model="cmdForm.terminalId" placeholder="选择终端（全部则留空）" clearable style="width:100%">
-            <el-option v-for="t in terminalsStore.terminals" :key="t.id" :label="`${t.id} - ${t.location}`" :value="t.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="命令类型">
-          <el-radio-group v-model="cmdForm.type">
-            <el-radio label="RESTART">重启</el-radio>
-            <el-radio label="MAINTENANCE">维护</el-radio>
-            <el-radio label="HEALTH_CHECK">健康检查</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="附加信息">
-          <el-input v-model="cmdForm.payload" type="textarea" :rows="2" placeholder="可选" />
-        </el-form-item>
-      </el-form>
+    <el-dialog v-model="showCmdDialog" width="680px" :close-on-click-modal="false" class="cmd-dialog">
+      <!-- Dialog header -->
+      <template #header>
+        <div class="cmd-dialog-header">
+          <div class="cmd-dialog-titles">
+            <div class="cmd-dialog-title">📨 下发命令</div>
+            <div class="cmd-dialog-sub">远程控制自助终端 · 支持批量操作</div>
+          </div>
+          <div class="cmd-dialog-badges">
+            <span class="cmd-badge">● {{ terminalsStore.onlineCount }} 在线</span>
+            <span class="cmd-badge warn">⚠ {{ terminalsStore.terminals.length - terminalsStore.onlineCount }} 离线</span>
+          </div>
+        </div>
+      </template>
+
+      <div class="cmd-dialog-body">
+        <!-- Step 1: Command type -->
+        <div class="cmd-section-label">① 选择命令类型</div>
+        <div class="cmd-grid">
+          <div
+            v-for="cmd in cmdOptions"
+            :key="cmd.type"
+            class="cmd-card"
+            :class="{ selected: selectedCmd === cmd.type }"
+            @click="selectedCmd = cmd.type"
+          >
+            <div class="cmd-icon">{{ cmd.icon }}</div>
+            <div class="cmd-name">{{ cmd.label }}</div>
+            <div class="cmd-desc">{{ cmd.desc }}</div>
+          </div>
+        </div>
+
+        <!-- Step 2: Terminal selection -->
+        <div class="cmd-section-label">
+          ② 选择目标终端
+          <span class="sel-count">（已选 {{ selectedTerminals.size }} 台）</span>
+        </div>
+        <div class="term-toolbar">
+          <button class="term-toolbar-btn" @click="selectAllTerminals">全选</button>
+          <button class="term-toolbar-btn" @click="clearAllTerminals">清空</button>
+          <span class="term-toolbar-info">在线 {{ terminalsStore.onlineCount }} 台 · 离线 {{ terminalsStore.terminals.length - terminalsStore.onlineCount }} 台</span>
+        </div>
+        <div class="term-grid">
+          <div
+            v-for="t in terminalsStore.terminals"
+            :key="t.id"
+            class="term-chip"
+            :class="{ selected: selectedTerminals.has(t.id), offline: t.status !== 'online' }"
+            @click="toggleTerminal(t.id)"
+          >
+            <span class="term-dot" :class="statusDotClass(t.status)"></span>
+            <div class="term-info">
+              <div class="term-id">{{ t.id }}</div>
+              <div class="term-loc">{{ t.location || '-' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirm strip -->
+        <div class="confirm-strip">
+          <div class="confirm-item">
+            <span class="confirm-label">命令</span>
+            <span class="confirm-val">{{ cmdOptions.find(c => c.type === selectedCmd)?.icon }} {{ cmdOptions.find(c => c.type === selectedCmd)?.label }}</span>
+          </div>
+          <span class="confirm-arrow">→</span>
+          <div class="confirm-item">
+            <span class="confirm-label">目标</span>
+            <span class="confirm-val">{{ selectedTerminalSummary }}</span>
+          </div>
+          <span class="confirm-arrow">→</span>
+          <div class="confirm-item">
+            <span class="confirm-label">预计</span>
+            <span class="confirm-val">立即下发</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dialog footer -->
       <template #footer>
-        <el-button @click="showCmdDialog = false">取消</el-button>
-        <el-button type="primary" :loading="cmdLoading" @click="sendCommand">确认下发</el-button>
+        <div class="cmd-dialog-footer">
+          <span class="footer-tip">⚠ 高危操作请确认终端编号</span>
+          <div class="footer-actions">
+            <el-button size="default" @click="showCmdDialog = false">取消</el-button>
+            <el-button
+              type="primary"
+              :loading="cmdLoading"
+              :disabled="selectedTerminals.size === 0"
+              @click="sendCommandBatch"
+              class="send-btn"
+            >
+              🚀 确认发送
+            </el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -296,7 +369,25 @@ const terminalsStore = useTerminalsStore()
 const activeTab = ref('terminals')
 const showCmdDialog = ref(false)
 const cmdLoading = ref(false)
+const selectedCmd = ref('RESTART')
+const selectedTerminals = ref(new Set())
 const cmdForm = ref({ terminalId: '', type: 'HEALTH_CHECK', payload: '' })
+
+const cmdOptions = [
+  { type: 'RESTART', icon: '🔄', label: '重启', desc: '远程重启终端' },
+  { type: 'MAINTENANCE', icon: '🔧', label: '维护模式', desc: '进入维护状态' },
+  { type: 'HEALTH_CHECK', icon: '❤', label: '健康检查', desc: '检测终端状态' },
+  { type: 'UPGRADE', icon: '⬆', label: '系统升级', desc: '更新系统版本' },
+  { type: 'CONFIG_UPDATE', icon: '⚙', label: '配置更新', desc: '更新业务配置' },
+  { type: 'SHUTDOWN', icon: '⏻', label: '关机', desc: '远程关闭终端' },
+]
+
+const selectedTerminalSummary = computed(() => {
+  const ids = [...selectedTerminals.value]
+  if (ids.length === 0) return '未选择终端'
+  if (ids.length <= 3) return ids.join('、')
+  return ids.slice(0, 3).join('、') + '...'
+})
 
 // Live counters (simulated for demo)
 const cloudMsgCount = ref(0)
@@ -363,12 +454,41 @@ async function refreshAll() {
   ])
 }
 
-async function sendCommand() {
+function toggleTerminal(id) {
+  if (selectedTerminals.value.has(id)) {
+    selectedTerminals.value.delete(id)
+  } else {
+    selectedTerminals.value.add(id)
+  }
+  selectedTerminals.value = new Set(selectedTerminals.value)
+}
+
+function selectAllTerminals() {
+  selectedTerminals.value = new Set(terminalsStore.terminals.map(t => t.id))
+}
+
+function clearAllTerminals() {
+  selectedTerminals.value = new Set()
+}
+
+function statusDotClass(status) {
+  if (status === 'online') return 'dot-green'
+  if (status === 'offline') return 'dot-red'
+  return 'dot-yellow'
+}
+
+async function sendCommandBatch() {
+  if (selectedTerminals.value.size === 0) return
   cmdLoading.value = true
   try {
-    await edgeStore.dispatchCommand(cmdForm.value.terminalId || null, cmdForm.value.type, cmdForm.value.payload)
+    const terminals = [...selectedTerminals.value]
+    for (const tid of terminals) {
+      await edgeStore.dispatchCommand(tid, selectedCmd.value, cmdForm.value.payload)
+    }
     showCmdDialog.value = false
-    cmdForm.value = { terminalId: '', type: 'HEALTH_CHECK', payload: '' }
+    selectedTerminals.value = new Set()
+    selectedCmd.value = 'RESTART'
+    cmdForm.value.payload = ''
   } finally {
     cmdLoading.value = false
   }
@@ -644,4 +764,77 @@ onUnmounted(() => {
 .type-bar-wrap { flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
 .type-bar { height: 100%; border-radius: 4px; }
 .type-pct { font-size: 11px; font-weight: 600; color: #0f172a; min-width: 28px; text-align: right; }
+
+/* Command dispatch dialog */
+.cmd-dialog-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  border-radius: 12px; padding: 16px 20px; color: #fff;
+}
+.cmd-dialog-titles { }
+.cmd-dialog-title { font-size: 16px; font-weight: 700; }
+.cmd-dialog-sub { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.cmd-dialog-badges { display: flex; gap: 8px; }
+.cmd-badge {
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3);
+}
+.cmd-badge.warn { background: rgba(239,68,68,0.3); }
+
+.cmd-dialog-body { padding: 20px 20px 0; }
+
+.cmd-section-label {
+  font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.sel-count { font-weight: 400; color: #4f46e5; margin-left: 4px; }
+
+.cmd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.cmd-card {
+  border: 2px solid #e5e7eb; border-radius: 10px; padding: 14px 12px;
+  cursor: pointer; transition: all 0.15s; background: #fff; text-align: center;
+}
+.cmd-card:hover { border-color: #6366f1; background: #f5f3ff; }
+.cmd-card.selected { border-color: #4f46e5; background: #eef2ff; }
+.cmd-icon { font-size: 22px; margin-bottom: 6px; }
+.cmd-name { font-size: 13px; font-weight: 700; color: #1f2937; }
+.cmd-desc { font-size: 10px; color: #9ca3af; margin-top: 2px; }
+
+.term-toolbar { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+.term-toolbar-btn {
+  padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  border: 1px solid #d1d5db; background: #fff; color: #374151; cursor: pointer;
+}
+.term-toolbar-btn:hover { background: #f3f4f6; }
+.term-toolbar-info { font-size: 12px; color: #6b7280; margin-left: 4px; }
+
+.term-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 4px; }
+.term-chip {
+  border: 1.5px solid #d1d5db; border-radius: 8px; padding: 8px 10px;
+  cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+}
+.term-chip:hover { border-color: #6366f1; background: #f5f3ff; }
+.term-chip.selected { border-color: #4f46e5; background: #eef2ff; }
+.term-chip.offline { opacity: 0.7; }
+.term-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: #10b981; }
+.dot-red { background: #ef4444; }
+.dot-yellow { background: #f59e0b; }
+.term-info { flex: 1; min-width: 0; }
+.term-id { font-size: 11px; font-weight: 700; color: #1f2937; }
+.term-loc { font-size: 9px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.confirm-strip {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 12px 16px; display: flex; align-items: center; gap: 16px; margin: 16px 0;
+}
+.confirm-item { display: flex; align-items: center; gap: 6px; }
+.confirm-label { font-size: 11px; color: #64748b; }
+.confirm-val { font-size: 13px; font-weight: 700; color: #1f2937; }
+.confirm-arrow { color: #d1d5db; font-size: 16px; }
+
+.cmd-dialog-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; }
+.footer-tip { font-size: 11px; color: #9ca3af; display: flex; align-items: center; gap: 4px; }
+.footer-actions { display: flex; gap: 8px; }
+.send-btn { background: linear-gradient(135deg, #4f46e5, #6366f1) !important; border: none !important; color: #fff !important; }
 </style>
