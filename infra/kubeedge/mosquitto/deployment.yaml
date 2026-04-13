@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto-edge
+  namespace: yunbianduan-edge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mosquitto-edge
+  template:
+    metadata:
+      labels:
+        app: mosquitto-edge
+    spec:
+      containers:
+        - name: mosquitto
+          image: eclipse-mosquitto:2.0.18
+          ports:
+            - containerPort: 1883
+              name: mqtt
+            - containerPort: 1884
+              name: websocket
+          volumeMounts:
+            - name: mosquitto-config
+              mountPath: /mosquitto/config
+              readOnly: true
+          livenessProbe:
+            tcpSocket:
+              port: 1883
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 1883
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: mosquitto-config
+          configMap:
+            name: mosquitto-edge-config
