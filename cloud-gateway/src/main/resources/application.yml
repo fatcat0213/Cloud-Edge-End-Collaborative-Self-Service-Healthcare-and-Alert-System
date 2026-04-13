@@ -7,19 +7,22 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: simulator-service
+          uri: http://simulator-service:8095
+          predicates:
+            - Path=/simulator/**
+        - id: simulator-service-api
+          uri: http://simulator-service:8095
+          predicates:
+            - Path=/api/v1/simulator/**
         - id: payment-service
           uri: http://payment-service:8081
           predicates:
-            - Path=/api/v1/payment/**
-          filters:
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 100
-                redis-rate-limiter.burstCapacity: 200
+            - Path=/api/v1/payment,/api/v1/payment/**
         - id: registration-service
           uri: http://registration-service:8082
           predicates:
-            - Path=/api/v1/registration/**
+            - Path=/api/v1/registration,/api/v1/registration/**
         - id: report-service
           uri: http://report-service:8083
           predicates:
@@ -35,14 +38,9 @@ spring:
         - id: edge-service
           uri: http://edge-service:8090
           predicates:
-            - Path=/api/v1/alerts/**
-      default-filters:
-        - name: CircuitBreaker
-          args:
-            name: defaultCB
-            fallbackUri: forward:/fallback
+            - Path=/api/v1/alerts/**,/api/v1/commands/**,/api/v1/stats/**
   data:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:redis123}

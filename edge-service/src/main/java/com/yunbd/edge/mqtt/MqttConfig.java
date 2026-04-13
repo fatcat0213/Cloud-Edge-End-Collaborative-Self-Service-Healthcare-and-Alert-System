@@ -19,14 +19,17 @@ public class MqttConfig {
     private int brokerPort;
 
     @Bean
-    public SmartLifecycle mqttSubscriberLifecycle(DroolsEngine droolsEngine, AlertStore alertStore) {
-        MqttSubscriber subscriber = new MqttSubscriber(brokerHost, brokerPort, droolsEngine,
+    public MqttSubscriber mqttSubscriber(DroolsEngine droolsEngine, AlertStore alertStore) {
+        return new MqttSubscriber(brokerHost, brokerPort, droolsEngine,
             alert -> {
                 alertStore.add(alert);
                 log.info("Alert generated: level={} type={} terminal={}",
                     alert.getLevel(), alert.getType(), alert.getTerminalId());
             });
+    }
 
+    @Bean
+    public SmartLifecycle mqttSubscriberLifecycle(MqttSubscriber subscriber) {
         return new SmartLifecycle() {
             private volatile boolean running = false;
 

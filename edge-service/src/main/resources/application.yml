@@ -6,9 +6,9 @@ spring:
     name: edge-service
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:redis123}
 
 mqtt:
   broker-host: ${MQTT_HOST:localhost}
@@ -17,3 +17,6 @@ mqtt:
 cloud:
   grpc-host: ${CLOUD_GRPC_HOST:localhost}
   grpc-port: ${CLOUD_GRPC_PORT:9090}
+
+kubeedge:
+  in-cluster: false

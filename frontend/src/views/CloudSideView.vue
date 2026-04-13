@@ -483,12 +483,25 @@ async function sendCommandBatch() {
   try {
     const terminals = [...selectedTerminals.value]
     for (const tid of terminals) {
-      await edgeStore.dispatchCommand(tid, selectedCmd.value, cmdForm.value.payload)
+      const result = await edgeStore.dispatchCommand(tid, selectedCmd.value, cmdForm.value.payload)
+      console.debug('Command sent:', tid, selectedCmd.value, '→', result)
+      // 模拟命令效果
+      if (selectedCmd.value === 'SHUTDOWN') {
+        terminalsStore.simulateShutdown(tid)
+      } else if (selectedCmd.value === 'RESTART') {
+        terminalsStore.simulateRestart(tid)
+      } else if (selectedCmd.value === 'MAINTENANCE') {
+        terminalsStore.simulateMaintenance(tid)
+      }
     }
+    // Immediately refresh command list
+    await edgeStore.fetchRecentCommands()
     showCmdDialog.value = false
     selectedTerminals.value = new Set()
     selectedCmd.value = 'RESTART'
     cmdForm.value.payload = ''
+  } catch (err) {
+    console.error('Command dispatch failed:', err)
   } finally {
     cmdLoading.value = false
   }
@@ -602,6 +615,7 @@ function formatBiz(biz) {
 let simTimer = null
 onMounted(() => {
   refreshAll()
+  edgeStore.startPolling(10000)
   simTimer = setInterval(() => {
     cloudMsgCount.value += Math.floor(Math.random() * 12 + 1)
     edgeMsgCount.value += Math.floor(Math.random() * 8 + 1)
@@ -611,6 +625,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (simTimer) clearInterval(simTimer)
+  edgeStore.stopPolling()
 })
 </script>
 
