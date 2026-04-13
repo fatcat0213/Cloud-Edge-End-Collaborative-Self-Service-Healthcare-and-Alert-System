@@ -257,7 +257,7 @@
     </div>
 
     <!-- Command dispatch dialog -->
-    <el-dialog v-model="showCmdDialog" width="680px" :close-on-click-modal="false" class="cmd-dialog">
+    <el-dialog v-model="showCmdDialog" width="560px" top="40px" :close-on-click-modal="false" class="cmd-dialog">
       <!-- Dialog header -->
       <template #header>
         <div class="cmd-dialog-header">
@@ -769,11 +769,11 @@ onUnmounted(() => {
 .cmd-dialog-header {
   display: flex; align-items: center; justify-content: space-between;
   background: linear-gradient(135deg, #4f46e5, #6366f1);
-  border-radius: 12px; padding: 16px 20px; color: #fff;
+  border-radius: 12px; padding: 12px 16px; color: #fff;
 }
 .cmd-dialog-titles { }
-.cmd-dialog-title { font-size: 16px; font-weight: 700; }
-.cmd-dialog-sub { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.cmd-dialog-title { font-size: 15px; font-weight: 700; }
+.cmd-dialog-sub { font-size: 11px; color: rgba(255,255,255,0.75); margin-top: 1px; }
 .cmd-dialog-badges { display: flex; gap: 8px; }
 .cmd-badge {
   padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
@@ -781,42 +781,42 @@ onUnmounted(() => {
 }
 .cmd-badge.warn { background: rgba(239,68,68,0.3); }
 
-.cmd-dialog-body { padding: 20px 20px 0; }
+.cmd-dialog-body { padding: 14px 16px 0; }
 
 .cmd-section-label {
-  font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 10px;
+  font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 8px;
   display: flex; align-items: center; gap: 6px;
 }
 .sel-count { font-weight: 400; color: #4f46e5; margin-left: 4px; }
 
-.cmd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.cmd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
 .cmd-card {
-  border: 2px solid #e5e7eb; border-radius: 10px; padding: 14px 12px;
+  border: 2px solid #e5e7eb; border-radius: 8px; padding: 10px 8px;
   cursor: pointer; transition: all 0.15s; background: #fff; text-align: center;
 }
 .cmd-card:hover { border-color: #6366f1; background: #f5f3ff; }
 .cmd-card.selected { border-color: #4f46e5; background: #eef2ff; }
-.cmd-icon { font-size: 22px; margin-bottom: 6px; }
-.cmd-name { font-size: 13px; font-weight: 700; color: #1f2937; }
-.cmd-desc { font-size: 10px; color: #9ca3af; margin-top: 2px; }
+.cmd-icon { font-size: 18px; margin-bottom: 4px; }
+.cmd-name { font-size: 12px; font-weight: 700; color: #1f2937; }
+.cmd-desc { font-size: 9px; color: #9ca3af; margin-top: 1px; }
 
-.term-toolbar { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+.term-toolbar { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
 .term-toolbar-btn {
-  padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
   border: 1px solid #d1d5db; background: #fff; color: #374151; cursor: pointer;
 }
 .term-toolbar-btn:hover { background: #f3f4f6; }
-.term-toolbar-info { font-size: 12px; color: #6b7280; margin-left: 4px; }
+.term-toolbar-info { font-size: 11px; color: #6b7280; margin-left: 4px; }
 
-.term-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 4px; }
+.term-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; max-height: 144px; overflow-y: auto; padding-right: 4px; }
 .term-chip {
-  border: 1.5px solid #d1d5db; border-radius: 8px; padding: 8px 10px;
-  cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  border: 1.5px solid #d1d5db; border-radius: 6px; padding: 6px 8px;
+  cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 5px;
 }
 .term-chip:hover { border-color: #6366f1; background: #f5f3ff; }
 .term-chip.selected { border-color: #4f46e5; background: #eef2ff; }
-.term-chip.offline { opacity: 0.7; }
-.term-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.term-chip.offline { opacity: 0.65; }
+.term-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .dot-green { background: #10b981; }
 .dot-red { background: #ef4444; }
 .dot-yellow { background: #f59e0b; }
@@ -825,16 +825,18 @@ onUnmounted(() => {
 .term-loc { font-size: 9px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .confirm-strip {
-  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
-  padding: 12px 16px; display: flex; align-items: center; gap: 16px; margin: 16px 0;
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 10px 14px; display: flex; align-items: center; gap: 12px; margin: 12px 0;
 }
-.confirm-item { display: flex; align-items: center; gap: 6px; }
+.confirm-item { display: flex; align-items: center; gap: 5px; }
 .confirm-label { font-size: 11px; color: #64748b; }
-.confirm-val { font-size: 13px; font-weight: 700; color: #1f2937; }
-.confirm-arrow { color: #d1d5db; font-size: 16px; }
+.confirm-val { font-size: 12px; font-weight: 700; color: #1f2937; }
+.confirm-arrow { color: #d1d5db; font-size: 14px; }
 
-.cmd-dialog-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; }
+.cmd-dialog-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 4px; }
 .footer-tip { font-size: 11px; color: #9ca3af; display: flex; align-items: center; gap: 4px; }
 .footer-actions { display: flex; gap: 8px; }
 .send-btn { background: linear-gradient(135deg, #4f46e5, #6366f1) !important; border: none !important; color: #fff !important; }
+
+.cmd-dialog :deep(.el-dialog__body) { padding-top: 0; padding-bottom: 0; }
 </style>
