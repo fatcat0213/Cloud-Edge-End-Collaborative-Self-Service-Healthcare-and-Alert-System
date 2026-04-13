@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: terminal-app
+  namespace: yunbianduan-edge
+  labels:
+    app: terminal-app
+    component: edge-terminal
+spec:
+  selector:
+    matchLabels:
+      app: terminal-app
+  template:
+    metadata:
+      labels:
+        app: terminal-app
+        component: edge-terminal
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/edge: "true"
+      containers:
+        - name: terminal-app
+          image: localhost:5500/terminal-app:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 9000
+              name: http
+              protocol: TCP
+          env:
+            - name: TERMINAL_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          envFrom:
+            - configMapRef:
+                name: terminal-app-config
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - /health.sh
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - mosquitto_pub
+                - -h
+                - "localhost"
+                - -t
+                - "test"
+                - -m
+                - "ready"
+                - -i
+                - "terminal-readiness"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: config
+          configMap:
+            name: terminal-app-config

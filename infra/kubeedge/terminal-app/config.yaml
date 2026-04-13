@@ -1,0 +1,35 @@
+terminal:
+  id: "${TERMINAL_ID}"
+  name: "${TERMINAL_NAME:-Terminal-${TERMINAL_ID}}"
+  location: "${TERMINAL_LOCATION:-default}"
+  type: "${TERMINAL_TYPE:-standard}"
+
+mqtt:
+  broker: "${MQTT_BROKER}"
+  port: "${MQTT_PORT:-1883}"
+  username: "${MQTT_USERNAME:-}"
+  password: "${MQTT_PASSWORD:-}"
+  qos: 1
+  topics:
+    status: "terminal/${TERMINAL_ID}/status"
+    events: "terminal/${TERMINAL_ID}/events"
+    commands: "terminal/${TERMINAL_ID}/commands"
+
+cloudcore:
+  url: "${CLOUDCORE_URL:-http://cloudcore.kubeedge:10000}"
+  commandPollInterval: 3
+  heartbeatInterval: 5
+
+health:
+  port: "${COMMAND_PORT:-9000}"
+  endpoint: "/health"
+  checkInterval: 30
+
+logging:
+  level: "${LOG_LEVEL:-info}"
+  format: json
+
+features:
+  autoUpdate: true
+  remoteMaintenance: true
+  statusReporting: true
