@@ -1,0 +1,647 @@
+<template>
+  <div class="cloud-page">
+    <!-- Header -->
+    <div class="cloud-header">
+      <div class="header-left">
+        <div class="header-icon">☁</div>
+        <div class="header-text">
+          <div class="header-title">云端侧 · 云边端协同</div>
+          <div class="header-sub">Cloud-Edge-Terminal Collaboration · 实时消息流转监控</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="online-chip">
+          <span class="online-dot"></span>
+          在线率 {{ onlineRateDisplay }}
+        </div>
+        <el-button type="primary" class="action-btn" @click="showCmdDialog = true">
+          <span>⬇</span> 下发命令
+        </el-button>
+        <el-button class="refresh-btn" @click="refreshAll" :loading="cloudStore.loading || edgeStore.loading">
+          <span>⟳</span> 刷新
+        </el-button>
+      </div>
+    </div>
+
+    <!-- Three-column top section -->
+    <div class="top-grid">
+      <!-- Left: Cloud dispatched commands -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📨</span>
+          <span class="card-title">云端下发指令</span>
+          <span class="card-badge">{{ recentCommands.length }} 条</span>
+        </div>
+        <div class="cmd-list">
+          <div v-for="cmd in recentCommands" :key="cmd.commandId || cmd.id" class="cmd-item">
+            <div class="cmd-top">
+              <el-tag :type="cmdTypeTag(cmd.type)" size="small">{{ cmd.type || 'UNKNOWN' }}</el-tag>
+              <span class="cmd-terminal">终端 {{ cmd.terminalId || '-' }}</span>
+              <span class="cmd-time">{{ fmtTime(cmd.createdAt || cmd.timestamp) }}</span>
+            </div>
+            <div class="cmd-msg">{{ cmd.message || cmd.payload || '-' }}</div>
+            <div class="cmd-status">
+              <el-tag :type="cmdStatusTag(cmd.status)" size="small">{{ cmdStatusLabel(cmd.status) }}</el-tag>
+            </div>
+          </div>
+          <el-empty v-if="!recentCommands.length" description="暂无下发指令" :image-size="48" />
+        </div>
+      </div>
+
+      <!-- Center: Cloud-Edge-Terminal flow diagram -->
+      <div class="card flow-card">
+        <div class="card-header">
+          <span class="card-icon">🔄</span>
+          <span class="card-title">云边端消息流转</span>
+          <span class="live-chip">● LIVE</span>
+        </div>
+        <div class="flow-diagram">
+          <div class="flow-layer cloud-layer">
+            <div class="flow-box cloud-box">
+              <div class="flow-layer-label">☁ 云端</div>
+              <div class="flow-service">Cloud Gateway</div>
+              <div class="flow-service">微服务集群</div>
+            </div>
+          </div>
+          <div class="flow-arrow">↓ {{ msgRateDisplay }}</div>
+          <div class="flow-layer edge-layer">
+            <div class="flow-box edge-box">
+              <div class="flow-layer-label">📶 边端</div>
+              <div class="flow-service">Edge Service</div>
+              <div class="flow-service">MQTT Broker</div>
+            </div>
+          </div>
+          <div class="flow-arrow">↓ {{ edgeRateDisplay }}</div>
+          <div class="flow-layer terminal-layer">
+            <div class="flow-box terminal-box">
+              <div class="flow-layer-label">📱 终端</div>
+              <div class="flow-service">终端 {{ terminalCount }} 台</div>
+              <div class="flow-service">实时心跳</div>
+            </div>
+          </div>
+        </div>
+        <div class="flow-stats">
+          <div class="flow-stat">
+            <div class="flow-stat-val">{{ cloudMsgCount }}</div>
+            <div class="flow-stat-label">云端消息</div>
+          </div>
+          <div class="flow-stat">
+            <div class="flow-stat-val">{{ edgeMsgCount }}</div>
+            <div class="flow-stat-label">边端消息</div>
+          </div>
+          <div class="flow-stat">
+            <div class="flow-stat-val">{{ terminalMsgCount }}</div>
+            <div class="flow-stat-label">终端消息</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Edge reported events -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📡</span>
+          <span class="card-title">边端上报事件</span>
+          <span class="card-badge">{{ recentEvents.length }} 条</span>
+        </div>
+        <div class="event-scroll" v-infinite-scroll="loadMoreEvents">
+          <div
+            v-for="evt in recentEvents"
+            :key="evt.id || evt.eventId || Math.random()"
+            class="evt-item"
+            :class="evtLevelClass(evt.level)"
+          >
+            <div class="evt-top">
+              <span class="evt-level-badge" :class="evtLevelClass(evt.level)">{{ evt.level || 'INFO' }}</span>
+              <span class="evt-type">{{ typeLabel(evt.type) }}</span>
+              <span class="evt-time">{{ fmtTime(evt.timestamp) }}</span>
+            </div>
+            <div class="evt-msg">{{ evt.message || evt.desc || '-' }}</div>
+            <div class="evt-meta">终端 {{ evt.terminalId || '-' }}</div>
+          </div>
+          <el-empty v-if="!recentEvents.length" description="暂无上报事件" :image-size="48" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Live business stream strip -->
+    <div class="biz-stream">
+      <div class="biz-stream-header">
+        <span class="biz-icon">⚡</span>
+        <span class="biz-title">实时业务流</span>
+        <span class="live-chip">● LIVE</span>
+      </div>
+      <div class="biz-scroll">
+        <div v-for="biz in bizRecords" :key="biz.id || biz.recordId || Math.random()" class="biz-item">
+          <span class="biz-type" :class="'biz-' + bizType(biz.type)">{{ bizTypeLabel(biz.type) }}</span>
+          <span class="biz-msg">{{ biz.patientName || biz.patientId || '' }} · {{ biz.message || biz.desc || formatBiz(biz) }}</span>
+          <span class="biz-time">{{ fmtTime(biz.timestamp || biz.createdAt) }}</span>
+        </div>
+        <el-empty v-if="!bizRecords.length" description="暂无业务记录" :image-size="32" />
+      </div>
+    </div>
+
+    <!-- Bottom tabs -->
+    <div class="card tabs-card">
+      <el-tabs v-model="activeTab" class="cloud-tabs">
+        <el-tab-pane label="终端状态" name="terminals">
+          <el-table :data="terminalTableData" stripe style="width:100%" size="small" v-loading="terminalsStore.terminals.length === 0">
+            <el-table-column prop="id" label="终端ID" width="90">
+              <template #default="{ row }">
+                <span class="mono">{{ row.id }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="location" label="位置" width="140" />
+            <el-table-column label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="statusTag(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="CPU" width="100">
+              <template #default="{ row }">
+                <div class="mini-bar-wrap">
+                  <div class="mini-bar" :style="{ width: row.cpu + '%', background: cpuColor(row.cpu) }"></div>
+                </div>
+                <span class="mini-val">{{ row.cpu }}%</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="内存" width="100">
+              <template #default="{ row }">
+                <div class="mini-bar-wrap">
+                  <div class="mini-bar" :style="{ width: row.memory + '%', background: memColor(row.memory) }"></div>
+                </div>
+                <span class="mini-val">{{ row.memory }}%</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="最近心跳" width="100">
+              <template #default="{ row }">
+                <span :class="heartbeatClass(row.heartbeatSecsAgo)">{{ row.heartbeatSecsAgo }}s 前</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="今日交易" width="90">
+              <template #default="{ row }">
+                <span class="mono">{{ row.todayTx || 0 }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="硬件状态">
+              <template #default="{ row }">
+                <span class="hw-tag" :class="hwClass(row.hardware?.printer)">打印机{{ hwLabel(row.hardware?.printer) }}</span>
+                <span class="hw-tag" :class="hwClass(row.hardware?.cardReader)">读卡器{{ hwLabel(row.hardware?.cardReader) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+
+        <el-tab-pane label="命令记录" name="commands">
+          <el-table :data="commandTableData" stripe style="width:100%" size="small">
+            <el-table-column label="命令ID" width="160">
+              <template #default="{ row }">
+                <span class="mono">{{ row.commandId || row.id || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="类型" width="110">
+              <template #default="{ row }">
+                <el-tag :type="cmdTypeTag(row.type)" size="small">{{ row.type || '-' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="目标终端" width="100">
+              <template #default="{ row }">
+                <span class="mono">{{ row.terminalId || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="cmdStatusTag(row.status)" size="small">{{ cmdStatusLabel(row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="消息" />
+            <el-table-column label="时间" width="160">
+              <template #default="{ row }">
+                {{ fmtTime(row.createdAt || row.timestamp) }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+
+        <el-tab-pane label="消息统计" name="stats">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-card-title">消息速率</div>
+              <div class="stat-big">{{ msgRateDisplay }}/s</div>
+              <div class="stat-sub">云边端消息</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">消息类型分布</div>
+              <div class="type-dist">
+                <div v-for="t in msgTypeDist" :key="t.label" class="type-row">
+                  <span class="type-label">{{ t.label }}</span>
+                  <div class="type-bar-wrap">
+                    <div class="type-bar" :style="{ width: t.pct + '%', background: t.color }"></div>
+                  </div>
+                  <span class="type-pct">{{ t.pct }}%</span>
+                </div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">云端 → 边端</div>
+              <div class="stat-big">{{ cloudMsgCount }}</div>
+              <div class="stat-sub">云端下发</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">边端 → 终端</div>
+              <div class="stat-big">{{ edgeMsgCount }}</div>
+              <div class="stat-sub">边端转发</div>
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </div>
+
+    <!-- Command dispatch dialog -->
+    <el-dialog v-model="showCmdDialog" title="下发命令" width="480px" :close-on-click-modal="false">
+      <el-form label-width="80px">
+        <el-form-item label="目标终端">
+          <el-select v-model="cmdForm.terminalId" placeholder="选择终端（全部则留空）" clearable style="width:100%">
+            <el-option v-for="t in terminalsStore.terminals" :key="t.id" :label="`${t.id} - ${t.location}`" :value="t.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="命令类型">
+          <el-radio-group v-model="cmdForm.type">
+            <el-radio label="RESTART">重启</el-radio>
+            <el-radio label="MAINTENANCE">维护</el-radio>
+            <el-radio label="HEALTH_CHECK">健康检查</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="附加信息">
+          <el-input v-model="cmdForm.payload" type="textarea" :rows="2" placeholder="可选" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showCmdDialog = false">取消</el-button>
+        <el-button type="primary" :loading="cmdLoading" @click="sendCommand">确认下发</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useCloudSideStore } from '../stores/cloudSide'
+import { useEdgeNodeStore } from '../stores/edgeNodeStore'
+import { useTerminalsStore } from '../stores/terminals'
+
+const cloudStore = useCloudSideStore()
+const edgeStore = useEdgeNodeStore()
+const terminalsStore = useTerminalsStore()
+
+const activeTab = ref('terminals')
+const showCmdDialog = ref(false)
+const cmdLoading = ref(false)
+const cmdForm = ref({ terminalId: '', type: 'HEALTH_CHECK', payload: '' })
+
+// Live counters (simulated for demo)
+const cloudMsgCount = ref(0)
+const edgeMsgCount = ref(0)
+const terminalMsgCount = ref(0)
+
+// -- Computed --
+const onlineRateDisplay = computed(() => {
+  const total = terminalsStore.terminals.length
+  if (!total) return '85%'
+  const online = terminalsStore.onlineCount
+  return Math.round((online / total) * 100) + '%'
+})
+const terminalCount = computed(() => terminalsStore.terminals.length)
+const msgRateDisplay = computed(() => {
+  const rate = edgeStore.stats?.messageRate || (Math.random() * 0.8 + 0.5).toFixed(1)
+  return parseFloat(rate).toFixed(1)
+})
+const edgeRateDisplay = computed(() => {
+  const rate = edgeStore.stats?.edgeMessageRate || (Math.random() * 0.6 + 0.2).toFixed(1)
+  return parseFloat(rate).toFixed(1)
+})
+
+const recentCommands = computed(() => edgeStore.commands.slice(0, 12))
+
+const recentEvents = computed(() => {
+  const fromAlerts = (cloudStore.edgeAlerts || []).map(a => ({ ...a, id: a.id || a.alertId }))
+  return fromAlerts.slice(0, 20)
+})
+
+const bizRecords = computed(() => {
+  const payments = (cloudStore.paymentRecords || []).map(p => ({ ...p, type: 'PAYMENT', id: p.payId || p.id }))
+  const regs = (cloudStore.registrationRecords || []).map(r => ({ ...r, type: 'REGISTRATION', id: r.regId || r.id }))
+  const combined = [...payments, ...regs].sort((a, b) => {
+    const ta = a.timestamp || a.createdAt || 0
+    const tb = b.timestamp || b.createdAt || 0
+    return new Date(tb) - new Date(ta)
+  })
+  return combined.slice(0, 30)
+})
+
+const commandTableData = computed(() => edgeStore.commands.slice(0, 20))
+
+const terminalTableData = computed(() => terminalsStore.terminals)
+
+const msgTypeDist = computed(() => {
+  const s = edgeStore.stats || {}
+  const total = s.heartbeatCount + s.alertCount + s.businessCount || 1
+  return [
+    { label: '心跳', pct: Math.round((s.heartbeatCount || 40) / total * 100), color: '#3b82f6' },
+    { label: '告警', pct: Math.round((s.alertCount || 20) / total * 100), color: '#ef4444' },
+    { label: '业务', pct: Math.round((s.businessCount || 30) / total * 100), color: '#10b981' },
+    { label: '命令', pct: Math.round((s.commandCount || 10) / total * 100), color: '#f59e0b' },
+  ]
+})
+
+// -- Methods --
+async function refreshAll() {
+  await Promise.all([
+    cloudStore.refresh(),
+    edgeStore.fetchRecentCommands(),
+    edgeStore.fetchStats(),
+    terminalsStore.fetchTerminals()
+  ])
+}
+
+async function sendCommand() {
+  cmdLoading.value = true
+  try {
+    await edgeStore.dispatchCommand(cmdForm.value.terminalId || null, cmdForm.value.type, cmdForm.value.payload)
+    showCmdDialog.value = false
+    cmdForm.value = { terminalId: '', type: 'HEALTH_CHECK', payload: '' }
+  } finally {
+    cmdLoading.value = false
+  }
+}
+
+function loadMoreEvents() { /* infinite scroll handled by v-infinite-scroll */ }
+
+function fmtTime(ts) {
+  if (!ts) return '-'
+  const d = new Date(ts)
+  if (isNaN(d.getTime())) return String(ts).slice(0, 16)
+  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function typeLabel(type) {
+  const map = {
+    HEARTBEAT: '心跳', HARDWARE: '硬件', ANOMALY: '异常', QUEUE: '排队',
+    PAYMENT: '支付', REGISTRATION: '挂号', INSURANCE: '医保',
+    NETWORK: '网络', SYSTEM: '系统', terminal_offline: '终端离线',
+    printer_error: '打印机', card_reader_error: '读卡器', BUSINESS: '业务'
+  }
+  return map[type] || map[type?.toUpperCase()] || type || '未知'
+}
+
+function evtLevelClass(level) {
+  if (level === 'P0') return 'lvl-p0'
+  if (level === 'P1') return 'lvl-p1'
+  if (level === 'P2') return 'lvl-p2'
+  return 'lvl-info'
+}
+
+function cmdTypeTag(type) {
+  if (type === 'RESTART') return 'danger'
+  if (type === 'MAINTENANCE') return 'warning'
+  return 'success'
+}
+
+function cmdStatusTag(status) {
+  if (status === 'SUCCESS' || status === 'COMPLETED') return 'success'
+  if (status === 'FAILED' || status === 'ERROR') return 'danger'
+  if (status === 'PENDING' || status === 'SENT') return 'warning'
+  return 'info'
+}
+
+function cmdStatusLabel(status) {
+  const m = { SUCCESS: '成功', FAILED: '失败', PENDING: '等待', SENT: '已发送', COMPLETED: '完成', ERROR: '错误' }
+  return m[status] || status || '未知'
+}
+
+function statusTag(s) {
+  if (s === 'online') return 'success'
+  if (s === 'offline') return 'danger'
+  return 'warning'
+}
+
+function statusLabel(s) {
+  if (s === 'online') return '在线'
+  if (s === 'offline') return '离线'
+  if (s === 'degraded') return '降级'
+  return s || '-'
+}
+
+function cpuColor(v) {
+  if (v >= 80) return '#ef4444'
+  if (v >= 60) return '#f59e0b'
+  return '#10b981'
+}
+
+function memColor(v) {
+  if (v >= 80) return '#ef4444'
+  if (v >= 60) return '#f59e0b'
+  return '#10b981'
+}
+
+function heartbeatClass(secs) {
+  if (secs > 60) return 'hb-old'
+  if (secs > 30) return 'hb-warn'
+  return 'hb-fresh'
+}
+
+function hwClass(hw) {
+  if (hw === 'ok' || !hw) return 'hw-ok'
+  return 'hw-err'
+}
+
+function hwLabel(hw) {
+  if (hw === 'ok' || !hw) return '正常'
+  const labels = { paper_jam: '卡纸', error: '故障', degraded: '降级' }
+  return labels[hw] || hw
+}
+
+function bizType(type) {
+  if (type === 'PAYMENT' || type?.includes('PAY')) return 'payment'
+  if (type === 'REGISTRATION' || type?.includes('REG')) return 'reg'
+  if (type === 'INSURANCE' || type?.includes('INS')) return 'ins'
+  return 'other'
+}
+
+function bizTypeLabel(type) {
+  const m = { PAYMENT: '支付', REGISTRATION: '挂号', INSURANCE: '医保' }
+  return m[type] || '业务'
+}
+
+function formatBiz(biz) {
+  if (biz.amount) return `¥${biz.amount}`
+  if (biz.deptName) return biz.deptName
+  return '-'
+}
+
+// -- Live simulation --
+let simTimer = null
+onMounted(() => {
+  refreshAll()
+  simTimer = setInterval(() => {
+    cloudMsgCount.value += Math.floor(Math.random() * 12 + 1)
+    edgeMsgCount.value += Math.floor(Math.random() * 8 + 1)
+    terminalMsgCount.value += Math.floor(Math.random() * 20 + 5)
+  }, 2000)
+})
+
+onUnmounted(() => {
+  if (simTimer) clearInterval(simTimer)
+})
+</script>
+
+<style scoped>
+.cloud-page { padding: 16px; background: #f0f4f8; min-height: 100%; }
+
+/* Header */
+.cloud-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 50%, #1a8fe3 100%);
+  border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; color: #fff;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header-icon {
+  width: 48px; height: 48px; background: rgba(255,255,255,0.15);
+  border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.header-title { font-size: 20px; font-weight: 700; }
+.header-sub { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.online-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600;
+}
+.online-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; }
+.action-btn { background: #10b981 !important; border-color: #10b981 !important; color: #fff !important; border-radius: 8px !important; font-weight: 600 !important; }
+.refresh-btn { background: rgba(255,255,255,0.15) !important; border: 1px solid rgba(255,255,255,0.3) !important; color: #fff !important; border-radius: 8px !important; }
+
+/* Top grid */
+.top-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+/* Card */
+.card {
+  background: #fff; border-radius: 12px; padding: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;
+}
+.card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.card-icon { font-size: 16px; }
+.card-title { font-size: 14px; font-weight: 700; color: #1e293b; flex: 1; }
+.card-badge {
+  font-size: 11px; padding: 2px 8px; background: #f1f5f9; color: #475569;
+  border-radius: 20px; font-weight: 600;
+}
+.live-chip {
+  font-size: 10px; padding: 2px 6px; background: #fef3c7; color: #d97706;
+  border-radius: 20px; font-weight: 700; animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* Command list */
+.cmd-list { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; }
+.cmd-item {
+  border-radius: 8px; padding: 8px 10px; background: #f8fafc;
+  border-left: 3px solid #3b82f6;
+}
+.cmd-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.cmd-terminal { font-size: 12px; color: #64748b; flex: 1; }
+.cmd-time { font-size: 11px; color: #94a3b8; }
+.cmd-msg { font-size: 12px; color: #334155; margin-bottom: 4px; }
+.cmd-status { display: flex; }
+.mono { font-family: monospace; }
+
+/* Flow diagram */
+.flow-card { }
+.flow-diagram { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 12px; }
+.flow-layer { width: 100%; }
+.flow-box {
+  border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column;
+  align-items: center; gap: 4px; color: #fff;
+}
+.cloud-box { background: linear-gradient(135deg, #1e3a5f, #2d6a9f); }
+.edge-box { background: linear-gradient(135deg, #0f766e, #10b981); }
+.terminal-box { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+.flow-layer-label { font-size: 13px; font-weight: 700; }
+.flow-service { font-size: 11px; opacity: 0.85; }
+.flow-arrow { font-size: 16px; color: #94a3b8; text-align: center; }
+.flow-stats { display: flex; gap: 8px; }
+.flow-stat {
+  flex: 1; text-align: center; background: #f8fafc; border-radius: 8px; padding: 8px 4px;
+}
+.flow-stat-val { font-size: 18px; font-weight: 700; color: #1a8fe3; }
+.flow-stat-label { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+
+/* Event scroll */
+.event-scroll { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; }
+.evt-item { border-radius: 8px; padding: 8px 10px; border-left: 3px solid #e2e8f0; background: #f8fafc; }
+.evt-item.lvl-p0 { border-color: #ef4444; background: #fff1f2; }
+.evt-item.lvl-p1 { border-color: #f59e0b; background: #fffbeb; }
+.evt-item.lvl-p2 { border-color: #3b82f6; background: #eff6ff; }
+.evt-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.evt-level-badge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+.lvl-p0 .evt-level-badge { background: #fee2e2; color: #dc2626; }
+.lvl-p1 .evt-level-badge { background: #fef3c7; color: #d97706; }
+.lvl-p2 .evt-level-badge { background: #dbeafe; color: #1d4ed8; }
+.lvl-info .evt-level-badge { background: #f1f5f9; color: #475569; }
+.evt-type { font-size: 11px; color: #64748b; }
+.evt-time { margin-left: auto; font-size: 11px; color: #94a3b8; }
+.evt-msg { font-size: 12px; color: #334155; }
+.evt-meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+/* Business stream */
+.biz-stream {
+  background: #fff; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;
+}
+.biz-stream-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.biz-icon { font-size: 14px; }
+.biz-title { font-size: 13px; font-weight: 700; color: #1e293b; flex: 1; }
+.biz-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.biz-item {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  background: #f8fafc; border-radius: 8px; padding: 6px 12px;
+  border: 1px solid #e2e8f0; font-size: 12px;
+}
+.biz-type { font-weight: 700; padding: 1px 6px; border-radius: 4px; font-size: 10px; }
+.biz-payment { background: #dcfce7; color: #15803d; }
+.biz-reg { background: #dbeafe; color: #1d4ed8; }
+.biz-ins { background: #fef3c7; color: #d97706; }
+.biz-other { background: #f1f5f9; color: #475569; }
+.biz-msg { color: #334155; white-space: nowrap; }
+.biz-time { color: #94a3b8; white-space: nowrap; }
+
+/* Tabs */
+.tabs-card { }
+.cloud-tabs :deep(.el-tabs__header) { margin-bottom: 12px; }
+
+/* Terminal table */
+.mini-bar-wrap { display: inline-block; width: 50px; height: 6px; background: #f1f5f9; border-radius: 3px; vertical-align: middle; margin-right: 4px; overflow: hidden; }
+.mini-bar { height: 100%; border-radius: 3px; }
+.mini-val { font-size: 11px; color: #64748b; }
+.hb-fresh { color: #059669; }
+.hb-warn { color: #d97706; }
+.hb-old { color: #dc2626; }
+.hw-tag { font-size: 10px; padding: 1px 5px; border-radius: 4px; margin-right: 4px; }
+.hw-ok { background: #dcfce7; color: #15803d; }
+.hw-err { background: #fee2e2; color: #dc2626; }
+
+/* Command table */
+.stats-grid { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 12px; }
+.stat-card {
+  background: #f8fafc; border-radius: 10px; padding: 14px;
+  border: 1px solid #e2e8f0;
+}
+.stat-card-title { font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 6px; }
+.stat-big { font-size: 28px; font-weight: 700; color: #1a8fe3; }
+.stat-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.type-dist { display: flex; flex-direction: column; gap: 8px; }
+.type-row { display: flex; align-items: center; gap: 8px; }
+.type-label { font-size: 11px; color: #64748b; min-width: 32px; }
+.type-bar-wrap { flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+.type-bar { height: 100%; border-radius: 4px; }
+.type-pct { font-size: 11px; font-weight: 600; color: #0f172a; min-width: 28px; text-align: right; }
+</style>
