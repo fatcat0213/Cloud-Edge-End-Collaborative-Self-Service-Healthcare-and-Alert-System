@@ -451,6 +451,35 @@
         </div>
       </el-tab-pane>
 
+      <!-- Tab 6: 队列监控 -->
+      <el-tab-pane label="队列监控" name="queue">
+        <div class="queue-monitor">
+          <div class="queue-grid">
+            <div
+              v-for="dept in queueDepts"
+              :key="dept.code"
+              class="queue-card"
+              :class="queueCardClass(dept)"
+            >
+              <div class="queue-card-header">{{ dept.name }}</div>
+              <div class="queue-card-body">
+                <div class="queue-main">
+                  <span class="queue-num">{{ dept.depth || 0 }}</span>
+                  <span class="queue-unit">人排队</span>
+                </div>
+                <div class="queue-metrics">
+                  <div class="queue-metric">
+                    <span class="q-label">平均等待</span>
+                    <span class="q-val">{{ dept.avgWait || '0s' }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="queue-card-status" :class="queueCardClass(dept)"></div>
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
+
     </el-tabs>
 
     <!-- Command dispatch dialog -->
@@ -674,6 +703,32 @@ const msgTypeDist = computed(() => {
     { label: '命令', pct: Math.round((s.commandCount || 10) / total * 100), color: '#f59e0b' },
   ]
 })
+
+// 队列监控
+const queueDepts = computed(() => {
+  const DEPTS_MAP = {
+    NEU: '神经科', CARD: '心内科', ORTH: '骨科', INT: '内科', EMRG: '急诊'
+  }
+  const codes = ['NEU', 'CARD', 'ORTH', 'INT', 'EMRG']
+  return (cloudStore.queueSnapshot || []).map((q, i) => ({
+    code: codes[i] || codes[0],
+    name: DEPTS_MAP[codes[i]] || codes[i],
+    depth: q.depth || 0,
+    avgWait: q.avgWaitMs ? Math.round(q.avgWaitMs / 1000) + 's' : '0s'
+  }))
+})
+
+// EMRG急诊阈值: >30红 >20黄; 其他科室阈值: >50红 >30黄
+function queueCardClass(dept) {
+  if (dept.code === 'EMRG') {
+    if (dept.depth > 30) return 'status-danger'
+    if (dept.depth > 20) return 'status-warn'
+    return 'status-ok'
+  }
+  if (dept.depth > 50) return 'status-danger'
+  if (dept.depth > 30) return 'status-warn'
+  return 'status-ok'
+}
 
 // -- Methods --
 async function refreshAll() {
@@ -1131,4 +1186,26 @@ onUnmounted(() => {
 .status-resolved { background: #dcfce7; color: #15803d; }
 .resolved-text { font-size: 12px; color: #10b981; }
 .alert-pagination { display: flex; justify-content: flex-end; margin-top: 10px; }
+
+/* Queue Monitor */
+.queue-monitor { padding-top: 12px; }
+.queue-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.queue-card {
+  background: #fff; border-radius: 12px; padding: 16px;
+  border: 1px solid #e2e8f0; position: relative; overflow: hidden;
+}
+.queue-card-header { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 10px; }
+.queue-main { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; }
+.queue-num { font-size: 32px; font-weight: 700; color: #1a8fe3; }
+.queue-unit { font-size: 12px; color: #64748b; }
+.queue-metrics { display: flex; flex-direction: column; gap: 4px; }
+.queue-metric { display: flex; justify-content: space-between; font-size: 12px; }
+.q-label { color: #94a3b8; }
+.q-val { color: #334155; font-weight: 500; }
+.queue-card-status { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 3px 3px 0 0; }
+.status-danger .queue-card-status { background: #ef4444; }
+.status-danger .queue-num { color: #ef4444; }
+.status-warn .queue-card-status { background: #f59e0b; }
+.status-warn .queue-num { color: #f59e0b; }
+.status-ok .queue-card-status { background: #10b981; }
 </style>
