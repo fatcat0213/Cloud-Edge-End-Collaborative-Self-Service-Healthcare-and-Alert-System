@@ -14,11 +14,8 @@
           <span class="online-dot"></span>
           在线率 {{ onlineRateDisplay }}
         </div>
-        <el-button type="primary" class="action-btn" @click="showCmdDialog = true">
-          <span>⬇</span> 下发命令
-        </el-button>
-        <el-button class="refresh-btn" @click="refreshAll" :loading="cloudStore.loading || edgeStore.loading">
-          <span>⟳</span> 刷新
+        <el-button class="reset-btn" @click="resetSimulation">
+          <span>↺</span> 重置模拟
         </el-button>
       </div>
     </div>
@@ -191,37 +188,6 @@
           </el-table>
         </el-tab-pane>
 
-        <el-tab-pane label="命令记录" name="commands">
-          <el-table :data="commandTableData" stripe style="width:100%" size="small">
-            <el-table-column label="命令ID" width="160">
-              <template #default="{ row }">
-                <span class="mono">{{ row.commandId || row.id || '-' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="类型" width="110">
-              <template #default="{ row }">
-                <el-tag :type="cmdTypeTag(row.type)" size="small">{{ row.type || '-' }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="目标终端" width="100">
-              <template #default="{ row }">
-                <span class="mono">{{ row.terminalId || '-' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="cmdStatusTag(row.status)" size="small">{{ cmdStatusLabel(row.status) }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="消息" />
-            <el-table-column label="时间" width="160">
-              <template #default="{ row }">
-                {{ fmtTime(row.createdAt || row.timestamp) }}
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-
         <el-tab-pane label="消息统计" name="stats">
           <div class="stats-grid">
             <div class="stat-card">
@@ -255,104 +221,6 @@
         </el-tab-pane>
       </el-tabs>
     </div>
-
-    <!-- Command dispatch dialog -->
-    <el-dialog v-model="showCmdDialog" width="560px" top="40px" :close-on-click-modal="false" class="cmd-dialog">
-      <!-- Dialog header -->
-      <template #header>
-        <div class="cmd-dialog-header">
-          <div class="cmd-dialog-titles">
-            <div class="cmd-dialog-title">📨 下发命令</div>
-            <div class="cmd-dialog-sub">远程控制自助终端 · 支持批量操作</div>
-          </div>
-          <div class="cmd-dialog-badges">
-            <span class="cmd-badge">● {{ terminalsStore.onlineCount }} 在线</span>
-            <span class="cmd-badge warn">⚠ {{ terminalsStore.terminals.length - terminalsStore.onlineCount }} 离线</span>
-          </div>
-        </div>
-      </template>
-
-      <div class="cmd-dialog-body">
-        <!-- Step 1: Command type -->
-        <div class="cmd-section-label">① 选择命令类型</div>
-        <div class="cmd-grid">
-          <div
-            v-for="cmd in cmdOptions"
-            :key="cmd.type"
-            class="cmd-card"
-            :class="{ selected: selectedCmd === cmd.type }"
-            @click="selectedCmd = cmd.type"
-          >
-            <div class="cmd-icon">{{ cmd.icon }}</div>
-            <div class="cmd-name">{{ cmd.label }}</div>
-            <div class="cmd-desc">{{ cmd.desc }}</div>
-          </div>
-        </div>
-
-        <!-- Step 2: Terminal selection -->
-        <div class="cmd-section-label">
-          ② 选择目标终端
-          <span class="sel-count">（已选 {{ selectedTerminals.size }} 台）</span>
-        </div>
-        <div class="term-toolbar">
-          <button class="term-toolbar-btn" @click="selectAllTerminals">全选</button>
-          <button class="term-toolbar-btn" @click="clearAllTerminals">清空</button>
-          <span class="term-toolbar-info">在线 {{ terminalsStore.onlineCount }} 台 · 离线 {{ terminalsStore.terminals.length - terminalsStore.onlineCount }} 台</span>
-        </div>
-        <div class="term-grid">
-          <div
-            v-for="t in terminalsStore.terminals"
-            :key="t.id"
-            class="term-chip"
-            :class="{ selected: selectedTerminals.has(t.id), offline: t.status !== 'online' }"
-            @click="toggleTerminal(t.id)"
-          >
-            <span class="term-dot" :class="statusDotClass(t.status)"></span>
-            <div class="term-info">
-              <div class="term-id">{{ t.id }}</div>
-              <div class="term-loc">{{ t.location || '-' }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Confirm strip -->
-        <div class="confirm-strip">
-          <div class="confirm-item">
-            <span class="confirm-label">命令</span>
-            <span class="confirm-val">{{ cmdOptions.find(c => c.type === selectedCmd)?.icon }} {{ cmdOptions.find(c => c.type === selectedCmd)?.label }}</span>
-          </div>
-          <span class="confirm-arrow">→</span>
-          <div class="confirm-item">
-            <span class="confirm-label">目标</span>
-            <span class="confirm-val">{{ selectedTerminalSummary }}</span>
-          </div>
-          <span class="confirm-arrow">→</span>
-          <div class="confirm-item">
-            <span class="confirm-label">预计</span>
-            <span class="confirm-val">立即下发</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Dialog footer -->
-      <template #footer>
-        <div class="cmd-dialog-footer">
-          <span class="footer-tip">⚠ 高危操作请确认终端编号</span>
-          <div class="footer-actions">
-            <el-button size="default" @click="showCmdDialog = false">取消</el-button>
-            <el-button
-              type="primary"
-              :loading="cmdLoading"
-              :disabled="selectedTerminals.size === 0"
-              @click="sendCommandBatch"
-              class="send-btn"
-            >
-              🚀 确认发送
-            </el-button>
-          </div>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -367,27 +235,6 @@ const edgeStore = useEdgeNodeStore()
 const terminalsStore = useTerminalsStore()
 
 const activeTab = ref('terminals')
-const showCmdDialog = ref(false)
-const cmdLoading = ref(false)
-const selectedCmd = ref('RESTART')
-const selectedTerminals = ref(new Set())
-const cmdForm = ref({ terminalId: '', type: 'HEALTH_CHECK', payload: '' })
-
-const cmdOptions = [
-  { type: 'RESTART', icon: '🔄', label: '重启', desc: '远程重启终端' },
-  { type: 'MAINTENANCE', icon: '🔧', label: '维护模式', desc: '进入维护状态' },
-  { type: 'HEALTH_CHECK', icon: '❤', label: '健康检查', desc: '检测终端状态' },
-  { type: 'UPGRADE', icon: '⬆', label: '系统升级', desc: '更新系统版本' },
-  { type: 'CONFIG_UPDATE', icon: '⚙', label: '配置更新', desc: '更新业务配置' },
-  { type: 'SHUTDOWN', icon: '⏻', label: '关机', desc: '远程关闭终端' },
-]
-
-const selectedTerminalSummary = computed(() => {
-  const ids = [...selectedTerminals.value]
-  if (ids.length === 0) return '未选择终端'
-  if (ids.length <= 3) return ids.join('、')
-  return ids.slice(0, 3).join('、') + '...'
-})
 
 // Live counters (simulated for demo)
 const cloudMsgCount = ref(0)
@@ -429,8 +276,6 @@ const bizRecords = computed(() => {
   return combined.slice(0, 30)
 })
 
-const commandTableData = computed(() => edgeStore.commands.slice(0, 20))
-
 const terminalTableData = computed(() => terminalsStore.terminals)
 
 const msgTypeDist = computed(() => {
@@ -452,59 +297,6 @@ async function refreshAll() {
     edgeStore.fetchStats(),
     terminalsStore.fetchTerminals()
   ])
-}
-
-function toggleTerminal(id) {
-  if (selectedTerminals.value.has(id)) {
-    selectedTerminals.value.delete(id)
-  } else {
-    selectedTerminals.value.add(id)
-  }
-  selectedTerminals.value = new Set(selectedTerminals.value)
-}
-
-function selectAllTerminals() {
-  selectedTerminals.value = new Set(terminalsStore.terminals.map(t => t.id))
-}
-
-function clearAllTerminals() {
-  selectedTerminals.value = new Set()
-}
-
-function statusDotClass(status) {
-  if (status === 'online') return 'dot-green'
-  if (status === 'offline') return 'dot-red'
-  return 'dot-yellow'
-}
-
-async function sendCommandBatch() {
-  if (selectedTerminals.value.size === 0) return
-  cmdLoading.value = true
-  try {
-    const terminals = [...selectedTerminals.value]
-    for (const tid of terminals) {
-      const result = await edgeStore.dispatchCommand(tid, selectedCmd.value, cmdForm.value.payload)
-      console.debug('Command sent:', tid, selectedCmd.value, '→', result)
-      // 模拟命令效果
-      if (selectedCmd.value === 'SHUTDOWN') {
-        terminalsStore.simulateShutdown(tid)
-      } else if (selectedCmd.value === 'RESTART') {
-        terminalsStore.simulateRestart(tid)
-      } else if (selectedCmd.value === 'MAINTENANCE') {
-        terminalsStore.simulateMaintenance(tid)
-      }
-    }
-    // Immediately refresh command list
-    await edgeStore.fetchRecentCommands()
-    showCmdDialog.value = false
-    selectedTerminals.value = new Set()
-    selectedCmd.value = 'RESTART'
-    cmdForm.value.payload = ''
-  } catch (err) {
-    console.error('Command dispatch failed:', err)
-  } finally {
-    cmdLoading.value = false
-  }
 }
 
 function loadMoreEvents() { /* infinite scroll handled by v-infinite-scroll */ }
@@ -531,24 +323,6 @@ function evtLevelClass(level) {
   if (level === 'P1') return 'lvl-p1'
   if (level === 'P2') return 'lvl-p2'
   return 'lvl-info'
-}
-
-function cmdTypeTag(type) {
-  if (type === 'RESTART') return 'danger'
-  if (type === 'MAINTENANCE') return 'warning'
-  return 'success'
-}
-
-function cmdStatusTag(status) {
-  if (status === 'SUCCESS' || status === 'COMPLETED') return 'success'
-  if (status === 'FAILED' || status === 'ERROR') return 'danger'
-  if (status === 'PENDING' || status === 'SENT') return 'warning'
-  return 'info'
-}
-
-function cmdStatusLabel(status) {
-  const m = { SUCCESS: '成功', FAILED: '失败', PENDING: '等待', SENT: '已发送', COMPLETED: '完成', ERROR: '错误' }
-  return m[status] || status || '未知'
 }
 
 function statusTag(s) {
@@ -654,6 +428,7 @@ onUnmounted(() => {
 .online-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; }
 .action-btn { background: #10b981 !important; border-color: #10b981 !important; color: #fff !important; border-radius: 8px !important; font-weight: 600 !important; }
 .refresh-btn { background: rgba(255,255,255,0.15) !important; border: 1px solid rgba(255,255,255,0.3) !important; color: #fff !important; border-radius: 8px !important; }
+.reset-btn { background: rgba(255,255,255,0.08) !important; border: 1px solid rgba(255,255,255,0.2) !important; color: rgba(255,255,255,0.7) !important; border-radius: 8px !important; }
 
 /* Top grid */
 .top-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 12px; margin-bottom: 12px; }
