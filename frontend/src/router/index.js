@@ -6,11 +6,10 @@ import MainLayout from '../components/MainLayout.vue'
 const Dashboard = () => import('../views/Dashboard.vue')
 const TerminalsView = () => import('../views/TerminalsView.vue')
 const AlertsView = () => import('../views/AlertsView.vue')
-const DemoView = () => import('../views/DemoView.vue')
-const RegistrationView = () => import('../views/RegistrationView.vue')
-const QueueView = () => import('../views/QueueView.vue')
-const InsuranceView = () => import('../views/InsuranceView.vue')
-const PaymentView = () => import('../views/PaymentView.vue')
+const TerminalSideView = () => import('../views/TerminalSideView.vue')
+const EdgeSideView = () => import('../views/EdgeSideView.vue')
+const CloudSideView = () => import('../views/CloudSideView.vue')
+const CloudOpsView = () => import('../views/CloudOpsView.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,11 +27,10 @@ const router = createRouter({
         { path: 'dashboard', component: Dashboard },
         { path: 'terminals', component: TerminalsView },
         { path: 'alerts', component: AlertsView },
-        { path: 'demo', component: DemoView },
-        { path: 'registration', component: RegistrationView },
-        { path: 'queue', component: QueueView },
-        { path: 'insurance', component: InsuranceView },
-        { path: 'payment', component: PaymentView },
+        { path: 'terminal-side', component: TerminalSideView },
+        { path: 'edge-side', component: EdgeSideView },
+        { path: 'cloud-side', component: CloudSideView },
+        { path: 'cloud-ops', component: CloudOpsView },
         { path: ':pathMatch(.*)*', redirect: '/dashboard' }
       ]
     }
