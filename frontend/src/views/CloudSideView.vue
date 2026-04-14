@@ -339,17 +339,17 @@
 
           <!-- 过滤器栏 -->
           <div class="alert-filters">
-            <el-select v-model="alertLevelFilter" size="small" placeholder="级别" clearable style="width:100px" @change="alertsStore.setFilter({ level: alertLevelFilter })">
+            <el-select v-model="alertLevelFilter" size="small" placeholder="级别" clearable style="width:100px" @change="syncAlertFilters()">
               <el-option label="P0" value="P0" />
               <el-option label="P1" value="P1" />
               <el-option label="P2" value="P2" />
             </el-select>
-            <el-select v-model="alertStatusFilter" size="small" placeholder="状态" clearable style="width:120px" @change="alertsStore.setFilter({ status: alertStatusFilter })">
+            <el-select v-model="alertStatusFilter" size="small" placeholder="状态" clearable style="width:120px" @change="syncAlertFilters()">
               <el-option label="活跃" value="ACTIVE" />
               <el-option label="已确认" value="ACKNOWLEDGED" />
               <el-option label="已解决" value="RESOLVED" />
             </el-select>
-            <el-input v-model="alertTerminalFilter" size="small" placeholder="终端ID" clearable style="width:120px" @change="alertsStore.setFilter({ terminalId: alertTerminalFilter })" />
+            <el-input v-model="alertTerminalFilter" size="small" placeholder="终端ID" clearable style="width:120px" @change="syncAlertFilters()" />
           </div>
 
           <!-- 告警列表 -->
@@ -573,6 +573,14 @@ const activeTab = ref('overview')
 const alertLevelFilter = ref('')
 const alertStatusFilter = ref('')
 const alertTerminalFilter = ref('')
+
+function syncAlertFilters() {
+  alertsStore.setFilter({
+    level: alertLevelFilter.value,
+    status: alertStatusFilter.value,
+    terminalId: alertTerminalFilter.value
+  })
+}
 
 function handleAcknowledge(alertId) {
   const operator = authStore.user?.name || '未知操作员'
