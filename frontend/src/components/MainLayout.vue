@@ -21,8 +21,7 @@
       </div>
       <div class="nav-group-title">云端</div>
       <div class="nav-list">
-        <button class="nav-item" :class="{ active: activeMenu==='cloud-side' }" @click="handleMenuSelect('cloud-side')">☁ 云端大屏</button>
-        <button class="nav-item" :class="{ active: activeMenu==='cloud-ops' }" @click="handleMenuSelect('cloud-ops')">⚙ 运维控制台</button>
+        <button class="nav-item" :class="{ active: activeMenu==='cloud-side' }" @click="handleMenuSelect('cloud-side')">☁ 云边协同</button>
       </div>
     </aside>
 
@@ -68,8 +67,7 @@ const pageTitles = {
   alerts: '告警中心',
   'terminal-side': '终端侧',
   'edge-side': '边端侧',
-  'cloud-side': '云端大屏',
-  'cloud-ops': '运维控制台'
+  'cloud-side': '云边协同',
 }
 
 // Derive active menu key from current route path segment

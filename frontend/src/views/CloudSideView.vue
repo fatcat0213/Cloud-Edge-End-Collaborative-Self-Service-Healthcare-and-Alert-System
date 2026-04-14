@@ -5,7 +5,7 @@
       <div class="header-left">
         <div class="header-icon">☁</div>
         <div class="header-text">
-          <div class="header-title">云端侧 · 云边端协同</div>
+          <div class="header-title">云边协同 · 云端大屏</div>
           <div class="header-sub">Cloud-Edge-Terminal Collaboration · 实时消息流转监控</div>
         </div>
       </div>
@@ -14,133 +14,224 @@
           <span class="online-dot"></span>
           在线率 {{ onlineRateDisplay }}
         </div>
-        <el-button class="reset-btn" @click="resetSimulation">
+        <!-- Tab-specific action buttons -->
+        <el-button v-if="activeTab === 'overview'" class="reset-btn" @click="resetSimulation">
           <span>↺</span> 重置模拟
+        </el-button>
+        <template v-if="activeTab === 'ops'">
+          <el-button type="primary" class="action-btn" @click="showCmdDialog = true">
+            <span>⬇</span> 下发命令
+          </el-button>
+          <el-button class="refresh-btn" @click="refreshAll" :loading="cloudStore.loading || edgeStore.loading">
+            <span>⟳</span> 刷新
+          </el-button>
+        </template>
+        <el-button v-if="activeTab === 'commands'" class="refresh-btn" @click="refreshAll" :loading="cloudStore.loading || edgeStore.loading">
+          <span>⟳</span> 刷新
         </el-button>
       </div>
     </div>
 
-    <!-- Three-column top section -->
-    <div class="top-grid">
-      <!-- Left: Cloud dispatched commands -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">📨</span>
-          <span class="card-title">云端下发指令</span>
-          <span class="card-badge">{{ recentCommands.length }} 条</span>
-        </div>
-        <div class="cmd-list">
-          <div v-for="cmd in recentCommands" :key="cmd.commandId || cmd.id" class="cmd-item">
-            <div class="cmd-top">
-              <el-tag :type="cmdTypeTag(cmd.type)" size="small">{{ cmd.type || 'UNKNOWN' }}</el-tag>
-              <span class="cmd-terminal">终端 {{ cmd.terminalId || '-' }}</span>
-              <span class="cmd-time">{{ fmtTime(cmd.createdAt || cmd.timestamp) }}</span>
-            </div>
-            <div class="cmd-msg">{{ cmd.message || cmd.payload || '-' }}</div>
-            <div class="cmd-status">
-              <el-tag :type="cmdStatusTag(cmd.status)" size="small">{{ cmdStatusLabel(cmd.status) }}</el-tag>
-            </div>
-          </div>
-          <el-empty v-if="!recentCommands.length" description="暂无下发指令" :image-size="48" />
-        </div>
-      </div>
+    <!-- Main 4-tab layout -->
+    <el-tabs v-model="activeTab" class="cloud-main-tabs">
 
-      <!-- Center: Cloud-Edge-Terminal flow diagram -->
-      <div class="card flow-card">
-        <div class="card-header">
-          <span class="card-icon">🔄</span>
-          <span class="card-title">云边端消息流转</span>
-          <span class="live-chip">● LIVE</span>
-        </div>
-        <div class="flow-diagram">
-          <div class="flow-layer cloud-layer">
-            <div class="flow-box cloud-box">
-              <div class="flow-layer-label">☁ 云端</div>
-              <div class="flow-service">Cloud Gateway</div>
-              <div class="flow-service">微服务集群</div>
+      <!-- Tab 1: 概览 -->
+      <el-tab-pane label="概览" name="overview">
+        <!-- Three-column top section -->
+        <div class="top-grid">
+          <!-- Left: Cloud dispatched commands -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-icon">📨</span>
+              <span class="card-title">云端下发指令</span>
+              <span class="card-badge">{{ recentCommands.length }} 条</span>
+            </div>
+            <div class="cmd-list">
+              <div v-for="cmd in recentCommands" :key="cmd.commandId || cmd.id" class="cmd-item">
+                <div class="cmd-top">
+                  <el-tag :type="cmdTypeTag(cmd.type)" size="small">{{ cmd.type || 'UNKNOWN' }}</el-tag>
+                  <span class="cmd-terminal">终端 {{ cmd.terminalId || '-' }}</span>
+                  <span class="cmd-time">{{ fmtTime(cmd.createdAt || cmd.timestamp) }}</span>
+                </div>
+                <div class="cmd-msg">{{ cmd.message || cmd.payload || '-' }}</div>
+                <div class="cmd-status">
+                  <el-tag :type="cmdStatusTag(cmd.status)" size="small">{{ cmdStatusLabel(cmd.status) }}</el-tag>
+                </div>
+              </div>
+              <el-empty v-if="!recentCommands.length" description="暂无下发指令" :image-size="48" />
             </div>
           </div>
-          <div class="flow-arrow">↓ {{ msgRateDisplay }}</div>
-          <div class="flow-layer edge-layer">
-            <div class="flow-box edge-box">
-              <div class="flow-layer-label">📶 边端</div>
-              <div class="flow-service">Edge Service</div>
-              <div class="flow-service">MQTT Broker</div>
-            </div>
-          </div>
-          <div class="flow-arrow">↓ {{ edgeRateDisplay }}</div>
-          <div class="flow-layer terminal-layer">
-            <div class="flow-box terminal-box">
-              <div class="flow-layer-label">📱 终端</div>
-              <div class="flow-service">终端 {{ terminalCount }} 台</div>
-              <div class="flow-service">实时心跳</div>
-            </div>
-          </div>
-        </div>
-        <div class="flow-stats">
-          <div class="flow-stat">
-            <div class="flow-stat-val">{{ cloudMsgCount }}</div>
-            <div class="flow-stat-label">云端消息</div>
-          </div>
-          <div class="flow-stat">
-            <div class="flow-stat-val">{{ edgeMsgCount }}</div>
-            <div class="flow-stat-label">边端消息</div>
-          </div>
-          <div class="flow-stat">
-            <div class="flow-stat-val">{{ terminalMsgCount }}</div>
-            <div class="flow-stat-label">终端消息</div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Right: Edge reported events -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">📡</span>
-          <span class="card-title">边端上报事件</span>
-          <span class="card-badge">{{ recentEvents.length }} 条</span>
-        </div>
-        <div class="event-scroll" v-infinite-scroll="loadMoreEvents">
-          <div
-            v-for="evt in recentEvents"
-            :key="evt.id || evt.eventId || Math.random()"
-            class="evt-item"
-            :class="evtLevelClass(evt.level)"
-          >
-            <div class="evt-top">
-              <span class="evt-level-badge" :class="evtLevelClass(evt.level)">{{ evt.level || 'INFO' }}</span>
-              <span class="evt-type">{{ typeLabel(evt.type) }}</span>
-              <span class="evt-time">{{ fmtTime(evt.timestamp) }}</span>
+          <!-- Center: Cloud-Edge-Terminal flow diagram -->
+          <div class="card flow-card">
+            <div class="card-header">
+              <span class="card-icon">🔄</span>
+              <span class="card-title">云边端消息流转</span>
+              <span class="live-chip">● LIVE</span>
             </div>
-            <div class="evt-msg">{{ evt.message || evt.desc || '-' }}</div>
-            <div class="evt-meta">终端 {{ evt.terminalId || '-' }}</div>
+            <div class="flow-diagram">
+              <div class="flow-layer cloud-layer">
+                <div class="flow-box cloud-box">
+                  <div class="flow-layer-label">☁ 云端</div>
+                  <div class="flow-service">Cloud Gateway</div>
+                  <div class="flow-service">微服务集群</div>
+                </div>
+              </div>
+              <div class="flow-arrow">↓ {{ msgRateDisplay }}</div>
+              <div class="flow-layer edge-layer">
+                <div class="flow-box edge-box">
+                  <div class="flow-layer-label">📶 边端</div>
+                  <div class="flow-service">Edge Service</div>
+                  <div class="flow-service">MQTT Broker</div>
+                </div>
+              </div>
+              <div class="flow-arrow">↓ {{ edgeRateDisplay }}</div>
+              <div class="flow-layer terminal-layer">
+                <div class="flow-box terminal-box">
+                  <div class="flow-layer-label">📱 终端</div>
+                  <div class="flow-service">终端 {{ terminalCount }} 台</div>
+                  <div class="flow-service">实时心跳</div>
+                </div>
+              </div>
+            </div>
+            <div class="flow-stats">
+              <div class="flow-stat">
+                <div class="flow-stat-val">{{ cloudMsgCount }}</div>
+                <div class="flow-stat-label">云端消息</div>
+              </div>
+              <div class="flow-stat">
+                <div class="flow-stat-val">{{ edgeMsgCount }}</div>
+                <div class="flow-stat-label">边端消息</div>
+              </div>
+              <div class="flow-stat">
+                <div class="flow-stat-val">{{ terminalMsgCount }}</div>
+                <div class="flow-stat-label">终端消息</div>
+              </div>
+            </div>
           </div>
-          <el-empty v-if="!recentEvents.length" description="暂无上报事件" :image-size="48" />
-        </div>
-      </div>
-    </div>
 
-    <!-- Live business stream strip -->
-    <div class="biz-stream">
-      <div class="biz-stream-header">
-        <span class="biz-icon">⚡</span>
-        <span class="biz-title">实时业务流</span>
-        <span class="live-chip">● LIVE</span>
-      </div>
-      <div class="biz-scroll">
-        <div v-for="biz in bizRecords" :key="biz.id || biz.recordId || Math.random()" class="biz-item">
-          <span class="biz-type" :class="'biz-' + bizType(biz.type)">{{ bizTypeLabel(biz.type) }}</span>
-          <span class="biz-msg">{{ biz.patientName || biz.patientId || '' }} · {{ biz.message || biz.desc || formatBiz(biz) }}</span>
-          <span class="biz-time">{{ fmtTime(biz.timestamp || biz.createdAt) }}</span>
+          <!-- Right: Edge reported events -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-icon">📡</span>
+              <span class="card-title">边端上报事件</span>
+              <span class="card-badge">{{ recentEvents.length }} 条</span>
+            </div>
+            <div class="event-scroll" v-infinite-scroll="loadMoreEvents">
+              <div
+                v-for="evt in recentEvents"
+                :key="evt.id || evt.eventId || Math.random()"
+                class="evt-item"
+                :class="evtLevelClass(evt.level)"
+              >
+                <div class="evt-top">
+                  <span class="evt-level-badge" :class="evtLevelClass(evt.level)">{{ evt.level || 'INFO' }}</span>
+                  <span class="evt-type">{{ typeLabel(evt.type) }}</span>
+                  <span class="evt-time">{{ fmtTime(evt.timestamp) }}</span>
+                </div>
+                <div class="evt-msg">{{ evt.message || evt.desc || '-' }}</div>
+                <div class="evt-meta">终端 {{ evt.terminalId || '-' }}</div>
+              </div>
+              <el-empty v-if="!recentEvents.length" description="暂无上报事件" :image-size="48" />
+            </div>
+          </div>
         </div>
-        <el-empty v-if="!bizRecords.length" description="暂无业务记录" :image-size="32" />
-      </div>
-    </div>
 
-    <!-- Bottom tabs -->
-    <div class="card tabs-card">
-      <el-tabs v-model="activeTab" class="cloud-tabs">
-        <el-tab-pane label="终端状态" name="terminals">
+        <!-- Live business stream strip -->
+        <div class="biz-stream">
+          <div class="biz-stream-header">
+            <span class="biz-icon">⚡</span>
+            <span class="biz-title">实时业务流</span>
+            <span class="live-chip">● LIVE</span>
+          </div>
+          <div class="biz-scroll">
+            <div v-for="biz in bizRecords" :key="biz.id || biz.recordId || Math.random()" class="biz-item">
+              <span class="biz-type" :class="'biz-' + bizType(biz.type)">{{ bizTypeLabel(biz.type) }}</span>
+              <span class="biz-msg">{{ biz.patientName || biz.patientId || '' }} · {{ biz.message || biz.desc || formatBiz(biz) }}</span>
+              <span class="biz-time">{{ fmtTime(biz.timestamp || biz.createdAt) }}</span>
+            </div>
+            <el-empty v-if="!bizRecords.length" description="暂无业务记录" :image-size="32" />
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <!-- Tab 2: 运维处置 -->
+      <el-tab-pane label="运维处置" name="ops">
+        <!-- Left: Command dispatch log -->
+        <div class="ops-grid">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-icon">📨</span>
+              <span class="card-title">命令下发记录</span>
+              <span class="card-badge">{{ recentCommands.length }} 条</span>
+            </div>
+            <div class="cmd-list">
+              <div v-for="cmd in recentCommands" :key="cmd.commandId || cmd.id" class="cmd-item">
+                <div class="cmd-top">
+                  <el-tag :type="cmdTypeTag(cmd.type)" size="small">{{ cmd.type || 'UNKNOWN' }}</el-tag>
+                  <span class="cmd-terminal">终端 {{ cmd.terminalId || '-' }}</span>
+                  <span class="cmd-time">{{ fmtTime(cmd.createdAt || cmd.timestamp) }}</span>
+                </div>
+                <div class="cmd-msg">{{ cmd.message || cmd.payload || '-' }}</div>
+                <div class="cmd-status">
+                  <el-tag :type="cmdStatusTag(cmd.status)" size="small">{{ cmdStatusLabel(cmd.status) }}</el-tag>
+                </div>
+              </div>
+              <el-empty v-if="!recentCommands.length" description="暂无下发指令" :image-size="48" />
+            </div>
+          </div>
+
+          <!-- Center: Real-time biz stream -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-icon">⚡</span>
+              <span class="card-title">实时业务流</span>
+              <span class="live-chip">● LIVE</span>
+            </div>
+            <div class="event-scroll">
+              <div v-for="biz in bizRecords" :key="biz.id || biz.recordId || Math.random()" class="evt-item">
+                <div class="evt-top">
+                  <span class="evt-type">{{ bizTypeLabel(biz.type) }}</span>
+                  <span class="evt-time">{{ fmtTime(biz.timestamp || biz.createdAt) }}</span>
+                </div>
+                <div class="evt-msg">{{ biz.patientName || biz.patientId || '' }} · {{ biz.message || biz.desc || formatBiz(biz) }}</div>
+              </div>
+              <el-empty v-if="!bizRecords.length" description="暂无业务记录" :image-size="48" />
+            </div>
+          </div>
+
+          <!-- Right: Edge events -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-icon">📡</span>
+              <span class="card-title">边端上报事件</span>
+              <span class="card-badge">{{ recentEvents.length }} 条</span>
+            </div>
+            <div class="event-scroll" v-infinite-scroll="loadMoreEvents">
+              <div
+                v-for="evt in recentEvents"
+                :key="evt.id || evt.eventId || Math.random()"
+                class="evt-item"
+                :class="evtLevelClass(evt.level)"
+              >
+                <div class="evt-top">
+                  <span class="evt-level-badge" :class="evtLevelClass(evt.level)">{{ evt.level || 'INFO' }}</span>
+                  <span class="evt-type">{{ typeLabel(evt.type) }}</span>
+                  <span class="evt-time">{{ fmtTime(evt.timestamp) }}</span>
+                </div>
+                <div class="evt-msg">{{ evt.message || evt.desc || '-' }}</div>
+                <div class="evt-meta">终端 {{ evt.terminalId || '-' }}</div>
+              </div>
+              <el-empty v-if="!recentEvents.length" description="暂无上报事件" :image-size="48" />
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <!-- Tab 3: 指令记录 -->
+      <el-tab-pane label="指令记录" name="commands">
+        <!-- Command history table with terminal status -->
+        <div class="card" style="margin-bottom: 12px">
           <el-table :data="terminalTableData" stripe style="width:100%" size="small" v-loading="terminalsStore.terminals.length === 0">
             <el-table-column prop="id" label="终端ID" width="90">
               <template #default="{ row }">
@@ -186,41 +277,175 @@
               </template>
             </el-table-column>
           </el-table>
-        </el-tab-pane>
+        </div>
+        <div class="card">
+          <div class="card-header" style="margin-bottom: 12px">
+            <span class="card-icon">📋</span>
+            <span class="card-title">命令历史</span>
+          </div>
+          <el-table :data="commandTableData" stripe style="width:100%" size="small">
+            <el-table-column label="命令ID" width="160">
+              <template #default="{ row }">
+                <span class="mono">{{ row.commandId || row.id || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="类型" width="110">
+              <template #default="{ row }">
+                <el-tag :type="cmdTypeTag(row.type)" size="small">{{ row.type || '-' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="目标终端" width="100">
+              <template #default="{ row }">
+                <span class="mono">{{ row.terminalId || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="cmdStatusTag(row.status)" size="small">{{ cmdStatusLabel(row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="消息" />
+            <el-table-column label="时间" width="160">
+              <template #default="{ row }">
+                {{ fmtTime(row.createdAt || row.timestamp) }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
 
-        <el-tab-pane label="消息统计" name="stats">
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-card-title">消息速率</div>
-              <div class="stat-big">{{ msgRateDisplay }}/s</div>
-              <div class="stat-sub">云边端消息</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-card-title">消息类型分布</div>
-              <div class="type-dist">
-                <div v-for="t in msgTypeDist" :key="t.label" class="type-row">
-                  <span class="type-label">{{ t.label }}</span>
-                  <div class="type-bar-wrap">
-                    <div class="type-bar" :style="{ width: t.pct + '%', background: t.color }"></div>
-                  </div>
-                  <span class="type-pct">{{ t.pct }}%</span>
+      <!-- Tab 4: 消息统计 -->
+      <el-tab-pane label="消息统计" name="stats">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-card-title">消息速率</div>
+            <div class="stat-big">{{ msgRateDisplay }}/s</div>
+            <div class="stat-sub">云边端消息</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-title">消息类型分布</div>
+            <div class="type-dist">
+              <div v-for="t in msgTypeDist" :key="t.label" class="type-row">
+                <span class="type-label">{{ t.label }}</span>
+                <div class="type-bar-wrap">
+                  <div class="type-bar" :style="{ width: t.pct + '%', background: t.color }"></div>
                 </div>
+                <span class="type-pct">{{ t.pct }}%</span>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-card-title">云端 → 边端</div>
-              <div class="stat-big">{{ cloudMsgCount }}</div>
-              <div class="stat-sub">云端下发</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-card-title">边端 → 终端</div>
-              <div class="stat-big">{{ edgeMsgCount }}</div>
-              <div class="stat-sub">边端转发</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-title">云端 → 边端</div>
+            <div class="stat-big">{{ cloudMsgCount }}</div>
+            <div class="stat-sub">云端下发</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-title">边端 → 终端</div>
+            <div class="stat-big">{{ edgeMsgCount }}</div>
+            <div class="stat-sub">边端转发</div>
+          </div>
+        </div>
+      </el-tab-pane>
+
+    </el-tabs>
+
+    <!-- Command dispatch dialog -->
+    <el-dialog v-model="showCmdDialog" width="560px" top="40px" :close-on-click-modal="false" class="cmd-dialog">
+      <!-- Dialog header -->
+      <template #header>
+        <div class="cmd-dialog-header">
+          <div class="cmd-dialog-titles">
+            <div class="cmd-dialog-title">📨 下发命令</div>
+            <div class="cmd-dialog-sub">远程控制自助终端 · 支持批量操作</div>
+          </div>
+          <div class="cmd-dialog-badges">
+            <span class="cmd-badge">● {{ terminalsStore.onlineCount }} 在线</span>
+            <span class="cmd-badge warn">⚠ {{ terminalsStore.terminals.length - terminalsStore.onlineCount }} 离线</span>
+          </div>
+        </div>
+      </template>
+
+      <div class="cmd-dialog-body">
+        <!-- Step 1: Command type -->
+        <div class="cmd-section-label">① 选择命令类型</div>
+        <div class="cmd-grid">
+          <div
+            v-for="cmd in cmdOptions"
+            :key="cmd.type"
+            class="cmd-card"
+            :class="{ selected: selectedCmd === cmd.type }"
+            @click="selectedCmd = cmd.type"
+          >
+            <div class="cmd-icon">{{ cmd.icon }}</div>
+            <div class="cmd-name">{{ cmd.label }}</div>
+            <div class="cmd-desc">{{ cmd.desc }}</div>
+          </div>
+        </div>
+
+        <!-- Step 2: Terminal selection -->
+        <div class="cmd-section-label">
+          ② 选择目标终端
+          <span class="sel-count">（已选 {{ selectedTerminals.size }} 台）</span>
+        </div>
+        <div class="term-toolbar">
+          <button class="term-toolbar-btn" @click="selectAllTerminals">全选</button>
+          <button class="term-toolbar-btn" @click="clearAllTerminals">清空</button>
+          <span class="term-toolbar-info">在线 {{ terminalsStore.onlineCount }} 台 · 离线 {{ terminalsStore.terminals.length - terminalsStore.onlineCount }} 台</span>
+        </div>
+        <div class="term-grid">
+          <div
+            v-for="t in terminalsStore.terminals"
+            :key="t.id"
+            class="term-chip"
+            :class="{ selected: selectedTerminals.has(t.id), offline: t.status !== 'online' }"
+            @click="toggleTerminal(t.id)"
+          >
+            <span class="term-dot" :class="statusDotClass(t.status)"></span>
+            <div class="term-info">
+              <div class="term-id">{{ t.id }}</div>
+              <div class="term-loc">{{ t.location || '-' }}</div>
             </div>
           </div>
-        </el-tab-pane>
-      </el-tabs>
-    </div>
+        </div>
+
+        <!-- Confirm strip -->
+        <div class="confirm-strip">
+          <div class="confirm-item">
+            <span class="confirm-label">命令</span>
+            <span class="confirm-val">{{ cmdOptions.find(c => c.type === selectedCmd)?.icon }} {{ cmdOptions.find(c => c.type === selectedCmd)?.label }}</span>
+          </div>
+          <span class="confirm-arrow">→</span>
+          <div class="confirm-item">
+            <span class="confirm-label">目标</span>
+            <span class="confirm-val">{{ selectedTerminalSummary }}</span>
+          </div>
+          <span class="confirm-arrow">→</span>
+          <div class="confirm-item">
+            <span class="confirm-label">预计</span>
+            <span class="confirm-val">立即下发</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dialog footer -->
+      <template #footer>
+        <div class="cmd-dialog-footer">
+          <span class="footer-tip">⚠ 高危操作请确认终端编号</span>
+          <div class="footer-actions">
+            <el-button size="default" @click="showCmdDialog = false">取消</el-button>
+            <el-button
+              type="primary"
+              :loading="cmdLoading"
+              :disabled="selectedTerminals.size === 0"
+              @click="sendCommandBatch"
+              class="send-btn"
+            >
+              🚀 确认发送
+            </el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -234,7 +459,28 @@ const cloudStore = useCloudSideStore()
 const edgeStore = useEdgeNodeStore()
 const terminalsStore = useTerminalsStore()
 
-const activeTab = ref('terminals')
+const activeTab = ref('overview')
+const showCmdDialog = ref(false)
+const cmdLoading = ref(false)
+const selectedCmd = ref('RESTART')
+const selectedTerminals = ref(new Set())
+const cmdForm = ref({ terminalId: '', type: 'HEALTH_CHECK', payload: '' })
+
+const cmdOptions = [
+  { type: 'RESTART', icon: '🔄', label: '重启', desc: '远程重启终端' },
+  { type: 'MAINTENANCE', icon: '🔧', label: '维护模式', desc: '进入维护状态' },
+  { type: 'HEALTH_CHECK', icon: '❤', label: '健康检查', desc: '检测终端状态' },
+  { type: 'UPGRADE', icon: '⬆', label: '系统升级', desc: '更新系统版本' },
+  { type: 'CONFIG_UPDATE', icon: '⚙', label: '配置更新', desc: '更新业务配置' },
+  { type: 'SHUTDOWN', icon: '⏻', label: '关机', desc: '远程关闭终端' },
+]
+
+const selectedTerminalSummary = computed(() => {
+  const ids = [...selectedTerminals.value]
+  if (ids.length === 0) return '未选择终端'
+  if (ids.length <= 3) return ids.join('、')
+  return ids.slice(0, 3).join('、') + '...'
+})
 
 // Live counters (simulated for demo)
 const cloudMsgCount = ref(0)
@@ -276,6 +522,8 @@ const bizRecords = computed(() => {
   return combined.slice(0, 30)
 })
 
+const commandTableData = computed(() => edgeStore.commands.slice(0, 20))
+
 const terminalTableData = computed(() => terminalsStore.terminals)
 
 const msgTypeDist = computed(() => {
@@ -297,6 +545,65 @@ async function refreshAll() {
     edgeStore.fetchStats(),
     terminalsStore.fetchTerminals()
   ])
+}
+
+function resetSimulation() {
+  terminalsStore.resetAll()
+  cloudStore.refresh()
+  edgeStore.fetchRecentCommands()
+}
+
+function toggleTerminal(id) {
+  if (selectedTerminals.value.has(id)) {
+    selectedTerminals.value.delete(id)
+  } else {
+    selectedTerminals.value.add(id)
+  }
+  selectedTerminals.value = new Set(selectedTerminals.value)
+}
+
+function selectAllTerminals() {
+  selectedTerminals.value = new Set(terminalsStore.terminals.map(t => t.id))
+}
+
+function clearAllTerminals() {
+  selectedTerminals.value = new Set()
+}
+
+function statusDotClass(status) {
+  if (status === 'online') return 'dot-green'
+  if (status === 'offline') return 'dot-red'
+  return 'dot-yellow'
+}
+
+async function sendCommandBatch() {
+  if (selectedTerminals.value.size === 0) return
+  cmdLoading.value = true
+  try {
+    const terminals = [...selectedTerminals.value]
+    for (const tid of terminals) {
+      const result = await edgeStore.dispatchCommand(tid, selectedCmd.value, cmdForm.value.payload)
+      console.debug('Command sent:', tid, selectedCmd.value, '→', result)
+      // 模拟命令效果
+      if (selectedCmd.value === 'SHUTDOWN') {
+        terminalsStore.simulateShutdown(tid)
+      } else if (selectedCmd.value === 'RESTART') {
+        terminalsStore.simulateRestart(tid)
+      } else if (selectedCmd.value === 'MAINTENANCE') {
+        terminalsStore.simulateMaintenance(tid)
+      }
+    }
+    // Immediately refresh command list
+    await edgeStore.fetchRecentCommands()
+    showCmdDialog.value = false
+    selectedTerminals.value = new Set()
+    selectedCmd.value = 'RESTART'
+    cmdForm.value.payload = ''
+  } catch (err) {
+    console.error('Command dispatch failed:', err)
+  } finally {
+    cmdLoading.value = false
+  }
 }
 
 function loadMoreEvents() { /* infinite scroll handled by v-infinite-scroll */ }
@@ -323,6 +630,24 @@ function evtLevelClass(level) {
   if (level === 'P1') return 'lvl-p1'
   if (level === 'P2') return 'lvl-p2'
   return 'lvl-info'
+}
+
+function cmdTypeTag(type) {
+  if (type === 'RESTART') return 'danger'
+  if (type === 'MAINTENANCE') return 'warning'
+  return 'success'
+}
+
+function cmdStatusTag(status) {
+  if (status === 'SUCCESS' || status === 'COMPLETED') return 'success'
+  if (status === 'FAILED' || status === 'ERROR') return 'danger'
+  if (status === 'PENDING' || status === 'SENT') return 'warning'
+  return 'info'
+}
+
+function cmdStatusLabel(status) {
+  const m = { SUCCESS: '成功', FAILED: '失败', PENDING: '等待', SENT: '已发送', COMPLETED: '完成', ERROR: '错误' }
+  return m[status] || status || '未知'
 }
 
 function statusTag(s) {
@@ -428,7 +753,7 @@ onUnmounted(() => {
 .online-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; }
 .action-btn { background: #10b981 !important; border-color: #10b981 !important; color: #fff !important; border-radius: 8px !important; font-weight: 600 !important; }
 .refresh-btn { background: rgba(255,255,255,0.15) !important; border: 1px solid rgba(255,255,255,0.3) !important; color: #fff !important; border-radius: 8px !important; }
-.reset-btn { background: rgba(255,255,255,0.08) !important; border: 1px solid rgba(255,255,255,0.2) !important; color: rgba(255,255,255,0.7) !important; border-radius: 8px !important; }
+.reset-btn { background: rgba(255,255,255,0.15) !important; border: 1px solid rgba(255,255,255,0.3) !important; color: #fff !important; border-radius: 8px !important; }
 
 /* Top grid */
 .top-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 12px; margin-bottom: 12px; }
@@ -527,6 +852,15 @@ onUnmounted(() => {
 /* Tabs */
 .tabs-card { }
 .cloud-tabs :deep(.el-tabs__header) { margin-bottom: 12px; }
+.cloud-main-tabs :deep(.el-tabs__header) { margin-bottom: 0; background: #fff; border-radius: 10px 10px 0 0; padding: 8px 16px 0; }
+.cloud-main-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
+.cloud-main-tabs :deep(.el-tabs__item) { font-size: 14px; font-weight: 600; color: #64748b; height: 36px; line-height: 36px; padding: 0 16px; }
+.cloud-main-tabs :deep(.el-tabs__item.is-active) { color: #1a8fe3; font-weight: 700; }
+.cloud-main-tabs :deep(.el-tabs__active-bar) { background-color: #1a8fe3; height: 3px; border-radius: 2px; }
+.cloud-main-tabs :deep(.el-tabs__content) { padding: 0; }
+
+/* Ops tab 3-column grid */
+.ops-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 12px; margin-top: 12px; }
 
 /* Terminal table */
 .mini-bar-wrap { display: inline-block; width: 50px; height: 6px; background: #f1f5f9; border-radius: 3px; vertical-align: middle; margin-right: 4px; overflow: hidden; }

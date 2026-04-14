@@ -9,8 +9,6 @@ const AlertsView = () => import('../views/AlertsView.vue')
 const TerminalSideView = () => import('../views/TerminalSideView.vue')
 const EdgeSideView = () => import('../views/EdgeSideView.vue')
 const CloudSideView = () => import('../views/CloudSideView.vue')
-const CloudOpsView = () => import('../views/CloudOpsView.vue')
-
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -30,7 +28,6 @@ const router = createRouter({
         { path: 'terminal-side', component: TerminalSideView },
         { path: 'edge-side', component: EdgeSideView },
         { path: 'cloud-side', component: CloudSideView },
-        { path: 'cloud-ops', component: CloudOpsView },
         { path: ':pathMatch(.*)*', redirect: '/dashboard' }
       ]
     }
