@@ -20,132 +20,10 @@
 
 ---
 
-## Task 1: 新增 Tab5 队列监控
+## Task 1: 新增 Tab4 告警中心
 
 **Files:**
-- Modify: `src/views/CloudSideView.vue` — 在 Tab4（告警中心）之后插入新 Tab
-
-- [ ] **Step 1: 在 CloudSideView.vue 中 Tab4（告警中心）之后插入 Tab5 队列监控面板**
-
-在 `el-tabs v-model="activeTab"` 的 `el-tab-pane` 列表中，在消息统计 Tab 之后（name="stats"）插入：
-
-```vue
-<!-- Tab 5: 队列监控 -->
-<el-tab-pane label="队列监控" name="queue">
-  <div class="queue-monitor">
-    <div class="queue-grid">
-      <div
-        v-for="(dept, idx) in queueDepts"
-        :key="dept.code"
-        class="queue-card"
-        :class="queueCardClass(dept)"
-      >
-        <div class="queue-card-header">{{ dept.name }}</div>
-        <div class="queue-card-body">
-          <div class="queue-main">
-            <span class="queue-num">{{ dept.depth || 0 }}</span>
-            <span class="queue-unit">人排队</span>
-          </div>
-          <div class="queue-metrics">
-            <div class="queue-metric">
-              <span class="q-label">平均等待</span>
-              <span class="q-val">{{ dept.avgWait || '0s' }}</span>
-            </div>
-            <div class="queue-metric">
-              <span class="q-label">平均交易</span>
-              <span class="q-val">{{ dept.avgTx || '0s' }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="queue-card-status" :class="queueCardClass(dept)"></div>
-      </div>
-    </div>
-  </div>
-</el-tab-pane>
-```
-
-- [ ] **Step 2: 在 script setup 中添加队列相关数据和函数**
-
-在 `const cloudStore = useCloudSideStore()` 之后添加：
-
-```javascript
-// 队列监控
-const queueDepts = computed(() => {
-  const DEPTS_MAP = {
-    NEU: '神经科', CARD: '心内科', ORTH: '骨科', INT: '内科', EMRG: '急诊'
-  }
-  return (cloudStore.queueSnapshot || []).map((q, i) => {
-    const codes = ['NEU', 'CARD', 'ORTH', 'INT', 'EMRG']
-    return {
-      code: codes[i] || codes[0],
-      name: DEPTS_MAP[codes[i]] || codes[i],
-      depth: q.depth || 0,
-      avgWait: q.avgWaitMs ? Math.round(q.avgWaitMs / 1000) + 's' : '0s',
-      avgTx: q.avgTxTime ? Math.round(q.avgTxTime / 1000) + 's' : '0s'
-    }
-  })
-})
-
-function queueCardClass(dept) {
-  if (dept.code === 'EMRG') {
-    if (dept.depth > 30) return 'status-danger'
-    if (dept.depth > 20) return 'status-warn'
-    return 'status-ok'
-  }
-  if (dept.depth > 50) return 'status-danger'
-  if (dept.depth > 30) return 'status-warn'
-  return 'status-ok'
-}
-```
-
-在 `activeTab` ref 声明处改为 `const activeTab = ref('overview')`（目前已是 overview，无需改）
-
-- [ ] **Step 3: 添加队列监控 CSS**
-
-在 `CloudSideView.vue` 的 `<style scoped>` 末尾添加：
-
-```css
-/* Queue Monitor */
-.queue-monitor { padding-top: 12px; }
-.queue-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-.queue-card {
-  background: #fff; border-radius: 12px; padding: 16px;
-  border: 1px solid #e2e8f0; position: relative; overflow: hidden;
-}
-.queue-card-header { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 10px; }
-.queue-main { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; }
-.queue-num { font-size: 32px; font-weight: 700; color: #1a8fe3; }
-.queue-unit { font-size: 12px; color: #64748b; }
-.queue-metrics { display: flex; flex-direction: column; gap: 4px; }
-.queue-metric { display: flex; justify-content: space-between; font-size: 12px; }
-.q-label { color: #94a3b8; }
-.q-val { color: #334155; font-weight: 500; }
-.queue-card-status { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 3px 3px 0 0; }
-.status-danger .queue-card-status { background: #ef4444; }
-.status-danger .queue-num { color: #ef4444; }
-.status-warn .queue-card-status { background: #f59e0b; }
-.status-warn .queue-num { color: #f59e0b; }
-.status-ok .queue-card-status { background: #10b981; }
-```
-
-- [ ] **Step 4: 验证队列监控 Tab 可用**
-
-运行：`cd D:/yunbianduan/frontend && npm run dev`
-Expected: Tab 列表出现"队列监控"选项，点击后显示 5 个科室卡片
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add frontend/src/views/CloudSideView.vue
-git commit -m "feat: add queue monitor tab (Tab5)"
-```
-
----
-
-## Task 2: 新增 Tab4 告警中心
-
-**Files:**
-- Modify: `src/views/CloudSideView.vue` — 在 Tab3（指令记录）和 Tab5（队列监控）之间插入告警中心 Tab
+- Modify: `src/views/CloudSideView.vue` — 在 Tab3（指令记录）之后、Tab5（队列监控）之前插入
 
 **alertsStore 已有能力：** `acknowledge(id)`、`resolve(id)`、`pagedAlerts`、`p0Count`、`p1Count`、`totalCount`、`activeCount`、`setFilter`、`setPage`、`fetchAlerts`
 
@@ -155,12 +33,14 @@ git commit -m "feat: add queue monitor tab (Tab5)"
 
 ```javascript
 import { useAlertsStore } from '../stores/alerts'
+import { useAuthStore } from '../stores/auth'
 ```
 
 在 store 声明处添加：
 
 ```javascript
 const alertsStore = useAlertsStore()
+const authStore = useAuthStore()
 ```
 
 在 `onMounted` 中添加告警轮询：
@@ -305,10 +185,14 @@ const alertStatusFilter = ref('')
 const alertTerminalFilter = ref('')
 
 function handleAcknowledge(alertId) {
+  const operator = authStore.user?.name || '未知操作员'
+  console.debug(`[审计] ${operator} 确认了告警 ${alertId}，时间: ${new Date().toISOString()}`)
   alertsStore.acknowledge(alertId)
 }
 
 function handleResolve(alertId) {
+  const operator = authStore.user?.name || '未知操作员'
+  console.debug(`[审计] ${operator} 解决了告警 ${alertId}，时间: ${new Date().toISOString()}`)
   alertsStore.resolve(alertId)
 }
 
@@ -357,6 +241,229 @@ function alertStatusLabel(status) {
 ```bash
 git add frontend/src/views/CloudSideView.vue
 git commit -m "feat: add alerts center tab (Tab4)"
+```
+
+```vue
+<!-- Tab 5: 队列监控 -->
+<el-tab-pane label="队列监控" name="queue">
+  <div class="queue-monitor">
+    <div class="queue-grid">
+      <div
+        v-for="(dept, idx) in queueDepts"
+        :key="dept.code"
+        class="queue-card"
+        :class="queueCardClass(dept)"
+      >
+        <div class="queue-card-header">{{ dept.name }}</div>
+        <div class="queue-card-body">
+          <div class="queue-main">
+            <span class="queue-num">{{ dept.depth || 0 }}</span>
+            <span class="queue-unit">人排队</span>
+          </div>
+          <div class="queue-metrics">
+            <div class="queue-metric">
+              <span class="q-label">平均等待</span>
+              <span class="q-val">{{ dept.avgWait || '0s' }}</span>
+            </div>
+            <div class="queue-metric">
+              <span class="q-label">平均交易</span>
+              <span class="q-val">{{ dept.avgTx || '0s' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="queue-card-status" :class="queueCardClass(dept)"></div>
+      </div>
+    </div>
+  </div>
+</el-tab-pane>
+```
+
+- [ ] **Step 2: 在 script setup 中添加队列相关数据和函数**
+
+在 `const cloudStore = useCloudSideStore()` 之后添加：
+
+```javascript
+// 队列监控
+const queueDepts = computed(() => {
+  const DEPTS_MAP = {
+    NEU: '神经科', CARD: '心内科', ORTH: '骨科', INT: '内科', EMRG: '急诊'
+  }
+  return (cloudStore.queueSnapshot || []).map((q, i) => {
+    const codes = ['NEU', 'CARD', 'ORTH', 'INT', 'EMRG']
+    return {
+      code: codes[i] || codes[0],
+      name: DEPTS_MAP[codes[i]] || codes[i],
+      depth: q.depth || 0,
+      avgWait: q.avgWaitMs ? Math.round(q.avgWaitMs / 1000) + 's' : '0s',
+      avgTx: q.avgTxTime ? Math.round(q.avgTxTime / 1000) + 's' : '0s'
+    }
+  })
+})
+
+function queueCardClass(dept) {
+  if (dept.code === 'EMRG') {
+    if (dept.depth > 30) return 'status-danger'
+    if (dept.depth > 20) return 'status-warn'
+    return 'status-ok'
+  }
+  if (dept.depth > 50) return 'status-danger'
+  if (dept.depth > 30) return 'status-warn'
+  return 'status-ok'
+}
+```
+
+在 `activeTab` ref 声明处改为 `const activeTab = ref('overview')`（目前已是 overview，无需改）
+
+- [ ] **Step 3: 添加队列监控 CSS**
+
+在 `CloudSideView.vue` 的 `<style scoped>` 末尾添加：
+
+```css
+/* Queue Monitor */
+.queue-monitor { padding-top: 12px; }
+.queue-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.queue-card {
+  background: #fff; border-radius: 12px; padding: 16px;
+  border: 1px solid #e2e8f0; position: relative; overflow: hidden;
+}
+.queue-card-header { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 10px; }
+.queue-main { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; }
+.queue-num { font-size: 32px; font-weight: 700; color: #1a8fe3; }
+.queue-unit { font-size: 12px; color: #64748b; }
+.queue-metrics { display: flex; flex-direction: column; gap: 4px; }
+.queue-metric { display: flex; justify-content: space-between; font-size: 12px; }
+.q-label { color: #94a3b8; }
+.q-val { color: #334155; font-weight: 500; }
+.queue-card-status { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 3px 3px 0 0; }
+.status-danger .queue-card-status { background: #ef4444; }
+.status-danger .queue-num { color: #ef4444; }
+.status-warn .queue-card-status { background: #f59e0b; }
+.status-warn .queue-num { color: #f59e0b; }
+.status-ok .queue-card-status { background: #10b981; }
+```
+
+- [ ] **Step 4: 验证队列监控 Tab 可用**
+
+运行：`cd D:/yunbianduan/frontend && npm run dev`
+Expected: Tab 列表出现"队列监控"选项，点击后显示 5 个科室卡片
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add frontend/src/views/CloudSideView.vue
+git commit -m "feat: add queue monitor tab (Tab5)"
+```
+
+---
+
+## Task 2: 新增 Tab5 队列监控
+
+**Files:**
+- Modify: `src/views/CloudSideView.vue` — 在 name="stats" 的 Tab 之后插入队列监控 Tab（此时告警中心 Tab 已在，队列监控排在消息统计右侧）
+
+- [ ] **Step 1: 在 CloudSideView.vue 的 el-tabs 中，在消息统计 Tab（name="stats"）之后插入 Tab5**
+
+```vue
+<!-- Tab 5: 队列监控 -->
+<el-tab-pane label="队列监控" name="queue">
+  <div class="queue-monitor">
+    <div class="queue-grid">
+      <div
+        v-for="dept in queueDepts"
+        :key="dept.code"
+        class="queue-card"
+        :class="queueCardClass(dept)"
+      >
+        <div class="queue-card-header">{{ dept.name }}</div>
+        <div class="queue-card-body">
+          <div class="queue-main">
+            <span class="queue-num">{{ dept.depth || 0 }}</span>
+            <span class="queue-unit">人排队</span>
+          </div>
+          <div class="queue-metrics">
+            <div class="queue-metric">
+              <span class="q-label">平均等待</span>
+              <span class="q-val">{{ dept.avgWait || '0s' }}</span>
+            </div>
+            <div class="queue-metric">
+              <span class="q-label">平均交易</span>
+              <span class="q-val">{{ dept.avgTx || '0s' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="queue-card-status" :class="queueCardClass(dept)"></div>
+      </div>
+    </div>
+  </div>
+</el-tab-pane>
+```
+
+- [ ] **Step 2: 在 script setup 中添加队列数据和 queueCardClass 函数**
+
+在文件顶部 import 区域附近添加：
+
+```javascript
+// 队列监控
+const queueDepts = computed(() => {
+  const DEPTS_MAP = {
+    NEU: '神经科', CARD: '心内科', ORTH: '骨科', INT: '内科', EMRG: '急诊'
+  }
+  const codes = ['NEU', 'CARD', 'ORTH', 'INT', 'EMRG']
+  return (cloudStore.queueSnapshot || []).map((q, i) => ({
+    code: codes[i] || codes[0],
+    name: DEPTS_MAP[codes[i]] || codes[i],
+    depth: q.depth || 0,
+    avgWait: q.avgWaitMs ? Math.round(q.avgWaitMs / 1000) + 's' : '0s',
+    avgTx: q.avgTxTime ? Math.round(q.avgTxTime / 1000) + 's' : '0s'
+  }))
+})
+
+// EMRG急诊阈值: >30红 >20黄; 其他科室阈值: >50红 >30黄
+function queueCardClass(dept) {
+  if (dept.code === 'EMRG') {
+    if (dept.depth > 30) return 'status-danger'
+    if (dept.depth > 20) return 'status-warn'
+    return 'status-ok'
+  }
+  if (dept.depth > 50) return 'status-danger'
+  if (dept.depth > 30) return 'status-warn'
+  return 'status-ok'
+}
+```
+
+- [ ] **Step 3: 添加队列监控 CSS**
+
+在 `<style scoped>` 末尾添加：
+
+```css
+/* Queue Monitor */
+.queue-monitor { padding-top: 12px; }
+.queue-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.queue-card {
+  background: #fff; border-radius: 12px; padding: 16px;
+  border: 1px solid #e2e8f0; position: relative; overflow: hidden;
+}
+.queue-card-header { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 10px; }
+.queue-main { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; }
+.queue-num { font-size: 32px; font-weight: 700; color: #1a8fe3; }
+.queue-unit { font-size: 12px; color: #64748b; }
+.queue-metrics { display: flex; flex-direction: column; gap: 4px; }
+.queue-metric { display: flex; justify-content: space-between; font-size: 12px; }
+.q-label { color: #94a3b8; }
+.q-val { color: #334155; font-weight: 500; }
+.queue-card-status { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 3px 3px 0 0; }
+.status-danger .queue-card-status { background: #ef4444; }
+.status-danger .queue-num { color: #ef4444; }
+.status-warn .queue-card-status { background: #f59e0b; }
+.status-warn .queue-num { color: #f59e0b; }
+.status-ok .queue-card-status { background: #10b981; }
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add frontend/src/views/CloudSideView.vue
+git commit -m "feat: add queue monitor tab (Tab5)"
 ```
 
 ---
@@ -573,22 +680,18 @@ git commit -m "feat: add scene injection panel to ops tab"
       <!-- 实时指标 -->
       <div class="info-section">
         <div class="section-title">实时指标</div>
-        <div class="metrics-row">
-          <div class="metric-item">
-            <div class="metric-label">CPU</div>
-            <div class="metric-bar-wrap">
-              <div class="metric-bar" :style="{ width: terminal.cpu + '%', background: cpuColor(terminal.cpu) }"></div>
-            </div>
-            <div class="metric-val">{{ terminal.cpu }}%</div>
+        <!-- CPU 和内存迷你折线图 -->
+        <div class="mini-charts-row">
+          <div class="mini-chart-wrap">
+            <div class="mini-chart-label">CPU <span :style="{ color: cpuColor(terminal.cpu) }">{{ terminal.cpu }}%</span></div>
+            <v-chart :option="cpuChartOption(terminal.cpuHistory || [terminal.cpu || 0])" style="height:48px;width:100%" autoresize />
           </div>
-          <div class="metric-item">
-            <div class="metric-label">内存</div>
-            <div class="metric-bar-wrap">
-              <div class="metric-bar" :style="{ width: terminal.memory + '%', background: memColor(terminal.memory) }"></div>
-            </div>
-            <div class="metric-val">{{ terminal.memory }}%</div>
+          <div class="mini-chart-wrap">
+            <div class="mini-chart-label">内存 <span :style="{ color: memColor(terminal.memory) }">{{ terminal.memory }}%</span></div>
+            <v-chart :option="memChartOption(terminal.memoryHistory || [terminal.memory || 0])" style="height:48px;width:100%" autoresize />
           </div>
         </div>
+        <!-- 队列深度和等待时间 -->
         <div class="metrics-row" style="margin-top:10px">
           <div class="metric-item">
             <div class="metric-label">队列深度</div>
@@ -615,6 +718,11 @@ git commit -m "feat: add scene injection panel to ops tab"
             <span class="hw-name">读卡器</span>
             <span class="hw-status">{{ hwLabel(terminal.hardware?.cardReader) }}</span>
           </div>
+          <div class="hw-item" :class="hwClass(terminal.hardware?.screen)">
+            <span class="hw-icon">🖥️</span>
+            <span class="hw-name">屏幕</span>
+            <span class="hw-status">{{ hwLabel(terminal.hardware?.screen) }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -625,8 +733,16 @@ git commit -m "feat: add scene injection panel to ops tab"
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, defineOptions } from 'vue'
+import { use } from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { GridComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import VChart from 'vue-echarts'
 import { useTerminalsStore } from '../stores/terminals'
+
+use([LineChart, GridComponent, CanvasRenderer])
+defineOptions({ components: { VChart } })
 
 const props = defineProps({
   terminalId: { type: String, default: '' },
@@ -652,6 +768,32 @@ const onlineDuration = computed(() => {
   const m = Math.floor((secs % 3600) / 60)
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 })
+
+function cpuChartOption(data) {
+  return {
+    grid: { top: 2, bottom: 2, left: 2, right: 2 },
+    xAxis: { type: 'category', show: false, data: data.map((_, i) => i) },
+    yAxis: { type: 'value', show: false, min: 0, max: 100 },
+    series: [{
+      type: 'line', data, smooth: true, symbol: 'none',
+      lineStyle: { color: '#3b82f6', width: 2 },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(59,130,246,0.3)' }, { offset: 1, color: 'rgba(59,130,246,0.05)' }] } }
+    }]
+  }
+}
+
+function memChartOption(data) {
+  return {
+    grid: { top: 2, bottom: 2, left: 2, right: 2 },
+    xAxis: { type: 'category', show: false, data: data.map((_, i) => i) },
+    yAxis: { type: 'value', show: false, min: 0, max: 100 },
+    series: [{
+      type: 'line', data, smooth: true, symbol: 'none',
+      lineStyle: { color: '#10b981', width: 2 },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(16,185,129,0.3)' }, { offset: 1, color: 'rgba(16,185,129,0.05)' }] } }
+    }]
+  }
+}
 
 function statusTag(s) {
   if (s === 'online') return 'success'
@@ -716,6 +858,10 @@ function hwLabel(hw) {
 .metric-bar { height: 100%; border-radius: 4px; transition: width .3s; }
 .metric-val { font-size: 13px; font-weight: 600; color: #334155; width: 40px; text-align: right; }
 .metric-val.highlight { font-size: 18px; color: #1a8fe3; font-weight: 700; width: auto; }
+
+.mini-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+.mini-chart-wrap { background: #f8fafc; border-radius: 8px; padding: 8px; }
+.mini-chart-label { font-size: 11px; color: #64748b; margin-bottom: 4px; display: flex; justify-content: space-between; }
 
 .hw-grid { display: flex; gap: 10px; }
 .hw-item {
