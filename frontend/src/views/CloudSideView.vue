@@ -226,6 +226,70 @@
             </div>
           </div>
         </div>
+
+        <!-- 场景注入面板 -->
+        <div class="injection-panel">
+          <div class="injection-header">
+            <span class="injection-icon">🧪</span>
+            <span class="injection-title">场景注入</span>
+          </div>
+          <div class="injection-body">
+            <div class="inj-row">
+              <div class="inj-field">
+                <label class="inj-label">场景类型</label>
+                <el-select v-model="selectedScene" placeholder="请选择场景" size="small" style="width:160px">
+                  <el-option
+                    v-for="s in sceneOptions"
+                    :key="s.value"
+                    :label="s.label"
+                    :value="s.value"
+                  >
+                    <span>{{ s.icon }} {{ s.label }}</span>
+                  </el-option>
+                </el-select>
+              </div>
+              <div class="inj-field">
+                <label class="inj-label">目标终端</label>
+                <el-select v-model="selectedInjectionTerminal" placeholder="终端ID" size="small" style="width:140px" clearable>
+                  <el-option
+                    v-for="t in terminalsStore.terminals"
+                    :key="t.id"
+                    :label="t.id + ' - ' + (t.location || '-')"
+                    :value="t.id"
+                  />
+                </el-select>
+              </div>
+              <el-button
+                type="warning"
+                size="small"
+                :disabled="!selectedScene || !selectedInjectionTerminal"
+                @click="showInjectionConfirm = true"
+                class="inject-btn"
+              >
+                🧪 注入场景
+              </el-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 场景注入确认 Dialog -->
+        <el-dialog v-model="showInjectionConfirm" width="420px" :close-on-click-modal="false">
+          <template #header>
+            <span style="font-weight:700">⚠ 确认场景注入</span>
+          </template>
+          <div style="padding: 8px 0">
+            <p>即将在终端 <strong>{{ selectedInjectionTerminal }}</strong> 注入场景：</p>
+            <p style="margin-top:8px;font-weight:600">
+              {{ sceneOptions.find(s => s.value === selectedScene)?.icon }}
+              {{ sceneOptions.find(s => s.value === selectedScene)?.label }}
+            </p>
+            <p style="color:#ef4444;margin-top:8px;font-size:13px">此操作将触发模拟故障，是否继续？</p>
+          </div>
+          <template #footer>
+            <el-button size="default" @click="showInjectionConfirm = false">取消</el-button>
+            <el-button type="warning" :loading="injectionLoading" @click="injectSceneAction">确认注入</el-button>
+          </template>
+        </el-dialog>
       </el-tab-pane>
 
       <!-- Tab 3: 指令记录 -->
@@ -584,11 +648,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useCloudSideStore } from '../stores/cloudSide'
 import { useEdgeNodeStore } from '../stores/edgeNodeStore'
 import { useTerminalsStore } from '../stores/terminals'
 import { useAlertsStore } from '../stores/alerts'
 import { useAuthStore } from '../stores/auth'
+import { injectScene } from '../api'
 
 const cloudStore = useCloudSideStore()
 const edgeStore = useEdgeNodeStore()
@@ -597,6 +663,38 @@ const alertsStore = useAlertsStore()
 const authStore = useAuthStore()
 
 const activeTab = ref('overview')
+
+// 场景注入
+const sceneOptions = [
+  { value: 'offline', label: '终端离线', icon: '💤', desc: '模拟终端断开连接' },
+  { value: 'printer_error', label: '打印机故障', icon: '🖨️', desc: '模拟打印机卡纸/故障' },
+  { value: 'card_reader_error', label: '读卡器故障', icon: '💳', desc: '模拟读卡器异常' },
+]
+const selectedScene = ref('')
+const selectedInjectionTerminal = ref('')
+const injectionLoading = ref(false)
+const showInjectionConfirm = ref(false)
+
+async function injectSceneAction() {
+  if (!selectedScene.value || !selectedInjectionTerminal.value) return
+  injectionLoading.value = true
+  try {
+    await injectScene({ terminalId: selectedInjectionTerminal.value, scene: selectedScene.value })
+    ElMessage.success('场景注入成功')
+    showInjectionConfirm.value = false
+    selectedScene.value = ''
+    selectedInjectionTerminal.value = ''
+    await Promise.all([
+      terminalsStore.fetchTerminals(),
+      alertsStore.fetchAlerts(),
+      edgeStore.fetchRecentCommands()
+    ])
+  } catch (e) {
+    ElMessage.error('注入失败: ' + (e.message || '未知错误'))
+  } finally {
+    injectionLoading.value = false
+  }
+}
 
 // 告警过滤器
 const alertLevelFilter = ref('')
@@ -1208,4 +1306,21 @@ onUnmounted(() => {
 .status-warn .queue-card-status { background: #f59e0b; }
 .status-warn .queue-num { color: #f59e0b; }
 .status-ok .queue-card-status { background: #10b981; }
+
+/* Scene Injection Panel */
+.injection-panel {
+  margin-top: 12px; background: #fff; border-radius: 10px;
+  border: 1px solid #e2e8f0; overflow: hidden;
+}
+.injection-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: #fef3c7; border-bottom: 1px solid #fde68a;
+}
+.injection-icon { font-size: 16px; }
+.injection-title { font-size: 13px; font-weight: 600; color: #92400e; }
+.injection-body { padding: 12px 16px; }
+.inj-row { display: flex; align-items: center; gap: 16px; }
+.inj-field { display: flex; align-items: center; gap: 8px; }
+.inj-label { font-size: 12px; color: #64748b; white-space: nowrap; }
+.inject-btn { font-weight: 600; }
 </style>
