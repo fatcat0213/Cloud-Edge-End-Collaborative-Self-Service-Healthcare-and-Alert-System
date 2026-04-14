@@ -314,7 +314,111 @@
         </div>
       </el-tab-pane>
 
-      <!-- Tab 4: 消息统计 -->
+      <!-- Tab 4: 告警中心 -->
+      <el-tab-pane label="告警中心" name="alerts">
+        <div class="alerts-tab-content">
+          <!-- 告警统计条 -->
+          <div class="alert-stats-bar">
+            <span class="alert-stat-item danger">
+              <span class="alert-stat-num">{{ alertsStore.p0Count }}</span>
+              <span class="alert-stat-label">P0 紧急</span>
+            </span>
+            <span class="alert-stat-item warning">
+              <span class="alert-stat-num">{{ alertsStore.p1Count }}</span>
+              <span class="alert-stat-label">P1 重要</span>
+            </span>
+            <span class="alert-stat-item">
+              <span class="alert-stat-num">{{ alertsStore.activeCount }}</span>
+              <span class="alert-stat-label">活跃</span>
+            </span>
+            <span class="alert-stat-item">
+              <span class="alert-stat-num">{{ alertsStore.totalCount }}</span>
+              <span class="alert-stat-label">全部</span>
+            </span>
+          </div>
+
+          <!-- 过滤器栏 -->
+          <div class="alert-filters">
+            <el-select v-model="alertLevelFilter" size="small" placeholder="级别" clearable style="width:100px" @change="alertsStore.setFilter({ level: alertLevelFilter })">
+              <el-option label="P0" value="P0" />
+              <el-option label="P1" value="P1" />
+              <el-option label="P2" value="P2" />
+            </el-select>
+            <el-select v-model="alertStatusFilter" size="small" placeholder="状态" clearable style="width:120px" @change="alertsStore.setFilter({ status: alertStatusFilter })">
+              <el-option label="活跃" value="ACTIVE" />
+              <el-option label="已确认" value="ACKNOWLEDGED" />
+              <el-option label="已解决" value="RESOLVED" />
+            </el-select>
+            <el-input v-model="alertTerminalFilter" size="small" placeholder="终端ID" clearable style="width:120px" @change="alertsStore.setFilter({ terminalId: alertTerminalFilter })" />
+          </div>
+
+          <!-- 告警列表 -->
+          <el-table :data="alertsStore.pagedAlerts" stripe size="small" v-loading="alertsStore.loading" class="alerts-table">
+            <el-table-column label="级别" width="70">
+              <template #default="{ row }">
+                <span class="level-badge" :class="'level-' + (row.level || 'P2').toLowerCase()">{{ row.level || 'P2' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="时间" width="80">
+              <template #default="{ row }">
+                <span class="time-text">{{ fmtTime(row.timestamp) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="终端" width="80">
+              <template #default="{ row }">
+                <span class="mono">{{ row.terminalId || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="类型" width="90">
+              <template #default="{ row }">
+                <span>{{ typeLabel(row.type) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="消息">
+              <template #default="{ row }">
+                <span class="msg-text">{{ row.message || row.desc || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="80">
+              <template #default="{ row }">
+                <span class="status-badge" :class="'status-' + (row.status || 'active').toLowerCase()">{{ alertStatusLabel(row.status) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="130" fixed="right">
+              <template #default="{ row }">
+                <el-button
+                  v-if="row.status !== 'ACKNOWLEDGED' && row.status !== 'RESOLVED'"
+                  size="small"
+                  type="warning"
+                  @click="handleAcknowledge(row.id)"
+                >确认</el-button>
+                <el-button
+                  v-if="row.status === 'ACKNOWLEDGED'"
+                  size="small"
+                  type="success"
+                  @click="handleResolve(row.id)"
+                >解决</el-button>
+                <span v-else-if="row.status === 'RESOLVED'" class="resolved-text">已解决</span>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <!-- 分页 -->
+          <div class="alert-pagination">
+            <el-pagination
+              background
+              layout="prev, pager, next"
+              :total="alertsStore.filteredAlerts.length"
+              :page-size="alertsStore.pageSize"
+              :current-page="alertsStore.currentPage"
+              @current-change="alertsStore.setPage"
+              small
+            />
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <!-- Tab 5: 消息统计 -->
       <el-tab-pane label="消息统计" name="stats">
         <div class="stats-grid">
           <div class="stat-card">
@@ -454,12 +558,38 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCloudSideStore } from '../stores/cloudSide'
 import { useEdgeNodeStore } from '../stores/edgeNodeStore'
 import { useTerminalsStore } from '../stores/terminals'
+import { useAlertsStore } from '../stores/alerts'
+import { useAuthStore } from '../stores/auth'
 
 const cloudStore = useCloudSideStore()
 const edgeStore = useEdgeNodeStore()
 const terminalsStore = useTerminalsStore()
+const alertsStore = useAlertsStore()
+const authStore = useAuthStore()
 
 const activeTab = ref('overview')
+
+// 告警过滤器
+const alertLevelFilter = ref('')
+const alertStatusFilter = ref('')
+const alertTerminalFilter = ref('')
+
+function handleAcknowledge(alertId) {
+  const operator = authStore.user?.name || '未知操作员'
+  console.debug(`[审计] ${operator} 确认了告警 ${alertId}，时间: ${new Date().toISOString()}`)
+  alertsStore.acknowledge(alertId)
+}
+
+function handleResolve(alertId) {
+  const operator = authStore.user?.name || '未知操作员'
+  console.debug(`[审计] ${operator} 解决了告警 ${alertId}，时间: ${new Date().toISOString()}`)
+  alertsStore.resolve(alertId)
+}
+
+function alertStatusLabel(status) {
+  const m = { ACTIVE: '活跃', ACKNOWLEDGED: '已确认', RESOLVED: '已解决' }
+  return m[status] || status || '活跃'
+}
 const showCmdDialog = ref(false)
 const cmdLoading = ref(false)
 const selectedCmd = ref('RESTART')
@@ -715,6 +845,7 @@ let simTimer = null
 onMounted(() => {
   refreshAll()
   edgeStore.startPolling(10000)
+  alertsStore.startPolling(5000)
   simTimer = setInterval(() => {
     cloudMsgCount.value += Math.floor(Math.random() * 12 + 1)
     edgeMsgCount.value += Math.floor(Math.random() * 8 + 1)
@@ -725,6 +856,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (simTimer) clearInterval(simTimer)
   edgeStore.stopPolling()
+  alertsStore.stopPolling()
 })
 </script>
 
@@ -963,4 +1095,32 @@ onUnmounted(() => {
 .send-btn { background: linear-gradient(135deg, #4f46e5, #6366f1) !important; border: none !important; color: #fff !important; }
 
 .cmd-dialog :deep(.el-dialog__body) { padding-top: 0; padding-bottom: 0; }
+
+/* Alerts Tab */
+.alerts-tab-content { padding-top: 12px; }
+.alert-stats-bar {
+  display: flex; gap: 16px; margin-bottom: 12px;
+  background: #fff; border-radius: 10px; padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+}
+.alert-stat-item { display: flex; align-items: baseline; gap: 6px; }
+.alert-stat-num { font-size: 22px; font-weight: 700; }
+.alert-stat-label { font-size: 12px; color: #64748b; }
+.alert-stat-item.danger .alert-stat-num { color: #ef4444; }
+.alert-stat-item.warning .alert-stat-num { color: #f59e0b; }
+.alert-filters { display: flex; gap: 8px; margin-bottom: 10px; }
+.alerts-table { border-radius: 10px; overflow: hidden; }
+.level-badge { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.level-p0 { background: #fee2e2; color: #b91c1c; }
+.level-p1 { background: #fef3c7; color: #a16207; }
+.level-p2 { background: #f1f5f9; color: #475569; }
+.time-text { font-size: 12px; color: #64748b; }
+.mono { font-family: monospace; font-size: 12px; }
+.msg-text { font-size: 13px; color: #334155; }
+.status-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.status-active { background: #fee2e2; color: #b91c1c; }
+.status-acknowledged { background: #fef3c7; color: #a16207; }
+.status-resolved { background: #dcfce7; color: #15803d; }
+.resolved-text { font-size: 12px; color: #10b981; }
+.alert-pagination { display: flex; justify-content: flex-end; margin-top: 10px; }
 </style>
