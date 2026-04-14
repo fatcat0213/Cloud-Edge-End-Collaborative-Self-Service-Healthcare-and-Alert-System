@@ -1,79 +1,49 @@
 <template>
-  <el-container direction="vertical" style="height: 100vh">
-    <!-- Top navigation header -->
-    <el-header height="64px" class="top-header">
-      <div class="header-inner">
-        <!-- Logo -->
-        <div class="logo">
-          <el-icon size="22" style="color: #1677ff"><Monitor /></el-icon>
-          <span class="logo-text">云边端监测</span>
-        </div>
-
-        <!-- Main navigation tabs -->
-        <el-menu
-          mode="horizontal"
-          :default-active="activeMenu"
-          class="top-nav"
-          @select="handleMenuSelect"
-        >
-          <el-menu-item index="dashboard">总览</el-menu-item>
-          <el-menu-item index="terminals">终端监控</el-menu-item>
-          <el-menu-item index="alerts">
-            <el-badge
-              :value="alertsStore.p0Count || undefined"
-              :hidden="alertsStore.p0Count === 0"
-              type="danger"
-            >
-              告警中心
-            </el-badge>
-          </el-menu-item>
-
-          <el-menu-item disabled class="nav-divider">|</el-menu-item>
-
-          <el-menu-item index="registration">挂号</el-menu-item>
-          <el-menu-item index="queue">排队</el-menu-item>
-          <el-menu-item index="insurance">医保</el-menu-item>
-          <el-menu-item index="payment">支付</el-menu-item>
-          <el-menu-item index="demo">架构演示</el-menu-item>
-        </el-menu>
-
-        <!-- Right: alert summary + user + logout -->
-        <div class="header-right">
-          <el-tag
-            v-if="alertsStore.p0Count > 0"
-            type="danger"
-            effect="dark"
-            size="small"
-          >
-            P0 {{ alertsStore.p0Count }}
-          </el-tag>
-          <el-tag
-            v-if="alertsStore.p1Count > 0"
-            type="warning"
-            effect="dark"
-            size="small"
-            style="margin-left: 6px"
-          >
-            P1 {{ alertsStore.p1Count }}
-          </el-tag>
-          <span class="username">{{ authStore.user?.name || '管理员' }}</span>
-          <el-button
-            type="text"
-            size="small"
-            class="logout-btn"
-            @click="logout"
-          >
-            退出
-          </el-button>
+  <div class="shell-layout">
+    <aside class="shell-sidebar">
+      <div class="brand-block">
+        <el-icon size="22" color="var(--color-primary)"><Monitor /></el-icon>
+        <div class="brand-text">
+          <div class="brand-title">WellNest 医疗监控</div>
+          <div class="brand-sub">云边端终端中心</div>
         </div>
       </div>
-    </el-header>
+      <div class="nav-group-title">监控域</div>
+      <div class="nav-list">
+        <button class="nav-item" :class="{ active: activeMenu==='dashboard' }" @click="handleMenuSelect('dashboard')">总览</button>
+        <button class="nav-item" :class="{ active: activeMenu==='terminals' }" @click="handleMenuSelect('terminals')">终端监控</button>
+        <button class="nav-item" :class="{ active: activeMenu==='alerts' }" @click="handleMenuSelect('alerts')">
+          告警中心
+          <span v-if="alertsStore.p0Count" class="badge danger">{{ alertsStore.p0Count }}</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeMenu==='terminal-side' }" @click="handleMenuSelect('terminal-side')">终端侧</button>
+        <button class="nav-item" :class="{ active: activeMenu==='edge-side' }" @click="handleMenuSelect('edge-side')">边端侧</button>
+      </div>
+      <div class="nav-group-title">云端</div>
+      <div class="nav-list">
+        <button class="nav-item" :class="{ active: activeMenu==='cloud-side' }" @click="handleMenuSelect('cloud-side')">☁ 云端大屏</button>
+        <button class="nav-item" :class="{ active: activeMenu==='cloud-ops' }" @click="handleMenuSelect('cloud-ops')">⚙ 运维控制台</button>
+      </div>
+    </aside>
 
-    <!-- Main content area -->
-    <el-main class="main-content">
-      <router-view />
-    </el-main>
-  </el-container>
+    <section class="shell-main">
+      <header class="shell-topbar">
+        <div>
+          <div class="top-title">{{ pageTitles[activeMenu] || '系统总览' }}</div>
+          <div class="top-sub">实时监测 · 告警联动 · 医疗业务可视化</div>
+        </div>
+        <div class="top-right">
+          <span class="badge danger" v-if="alertsStore.p0Count">P0 {{ alertsStore.p0Count }}</span>
+          <span class="badge warning" v-if="alertsStore.p1Count">P1 {{ alertsStore.p1Count }}</span>
+          <span class="username">{{ authStore.user?.name || '值班管理员' }}</span>
+          <el-button type="primary" plain size="small" @click="logout">退出</el-button>
+        </div>
+      </header>
+      <main class="content-wrap">
+        <router-view />
+      </main>
+    </section>
+  </div>
 </template>
 
 <script setup>
@@ -96,11 +66,10 @@ const pageTitles = {
   dashboard: '总览',
   terminals: '终端监控',
   alerts: '告警中心',
-  demo: '架构演示',
-  registration: '挂号预约',
-  queue: '排队查询',
-  insurance: '医保验证',
-  payment: '支付验证'
+  'terminal-side': '终端侧',
+  'edge-side': '边端侧',
+  'cloud-side': '云端大屏',
+  'cloud-ops': '运维控制台'
 }
 
 // Derive active menu key from current route path segment
@@ -132,6 +101,7 @@ watch(
 onMounted(() => {
   alertsStore.startPolling(5000)
   statsStore.startPolling(10000)
+  terminalsStore.startPolling(5000)
   // Initial sync
   terminalsStore.applyAlerts(alertsStore.alerts)
 })
@@ -139,97 +109,139 @@ onMounted(() => {
 onUnmounted(() => {
   alertsStore.stopPolling()
   statsStore.stopPolling()
+  terminalsStore.stopPolling()
 })
 </script>
 
 <style scoped>
-.top-header {
-  background: var(--bg-header, #001529);
-  padding: 0;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  z-index: 100;
+.shell-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  height: 100vh;
+  background: var(--bg-page);
 }
 
-.header-inner {
+.shell-sidebar {
+  border-right: 1px solid var(--border-color);
+  background: linear-gradient(180deg, #f8fbff 0%, #f5f9ff 100%);
+  padding: 20px 16px;
+  overflow-y: auto;
+}
+
+.brand-block {
   display: flex;
   align-items: center;
-  height: 100%;
-  padding: 0 24px;
+  gap: 10px;
+  margin-bottom: 18px;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  margin-right: 32px;
-}
-
-.logo-text {
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.top-nav {
-  flex: 1;
-  background: transparent;
-  border-bottom: none;
-  height: 64px;
-}
-
-.top-nav :deep(.el-menu-item) {
-  color: rgba(255, 255, 255, 0.75);
-  height: 64px;
-  line-height: 64px;
-  border-bottom: 3px solid transparent;
+.brand-title {
   font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-.top-nav :deep(.el-menu-item:hover) {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08) !important;
+.brand-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
-.top-nav :deep(.el-menu-item.is-active) {
-  color: #1677ff !important;
-  background: transparent !important;
-  border-bottom-color: #1677ff;
+.nav-group-title {
+  margin: 14px 8px 8px;
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .08em;
 }
 
-.nav-divider {
-  cursor: default;
-  color: rgba(255, 255, 255, 0.2) !important;
-  padding: 0 4px !important;
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.header-right {
+.nav-item {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-item:hover {
+  background: #eef4ff;
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: #c7dbff;
+  font-weight: 600;
+}
+
+.shell-main {
+  display: grid;
+  grid-template-rows: 76px 1fr;
+  min-width: 0;
+}
+
+.shell-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: #ffffffd6;
+  backdrop-filter: blur(6px);
+}
+
+.top-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.top-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.top-right {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
-  margin-left: 24px;
 }
+
+.badge {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.danger { background: #fee2e2; color: #b91c1c; }
+.badge.warning { background: #fef3c7; color: #a16207; }
 
 .username {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 13px;
-  margin-left: 8px;
-}
-
-.logout-btn {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
-.logout-btn:hover {
-  color: #ffffff;
+.content-wrap {
+  overflow: auto;
+  padding: 20px 22px;
 }
 
-.main-content {
-  background: var(--bg-page, #f5f7fa);
-  padding: 24px;
-  overflow-y: auto;
+@media (max-width: 1200px) {
+  .shell-layout { grid-template-columns: 210px 1fr; }
+  .top-title { font-size: 18px; }
 }
 </style>
