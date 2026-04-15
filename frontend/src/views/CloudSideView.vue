@@ -487,7 +487,36 @@
         </div>
       </el-tab-pane>
 
-      <!-- Tab 5: 消息统计 -->
+      <!-- Tab 5: 队列监控 -->
+      <el-tab-pane label="队列监控" name="queue">
+        <div class="queue-monitor">
+          <div class="queue-grid">
+            <div
+              v-for="dept in queueDepts"
+              :key="dept.code"
+              class="queue-card"
+              :class="queueCardClass(dept)"
+            >
+              <div class="queue-card-header">{{ dept.name }}</div>
+              <div class="queue-card-body">
+                <div class="queue-main">
+                  <span class="queue-num">{{ dept.depth || 0 }}</span>
+                  <span class="queue-unit">人排队</span>
+                </div>
+                <div class="queue-metrics">
+                  <div class="queue-metric">
+                    <span class="q-label">平均等待</span>
+                    <span class="q-val">{{ dept.avgWait || '0s' }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="queue-card-status" :class="queueCardClass(dept)"></div>
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <!-- Tab 6: 消息统计 -->
       <el-tab-pane label="消息统计" name="stats">
         <div class="stats-grid">
           <div class="stat-card">
@@ -516,35 +545,6 @@
             <div class="stat-card-title">边端 → 终端</div>
             <div class="stat-big">{{ edgeMsgCount }}</div>
             <div class="stat-sub">边端转发</div>
-          </div>
-        </div>
-      </el-tab-pane>
-
-      <!-- Tab 6: 队列监控 -->
-      <el-tab-pane label="队列监控" name="queue">
-        <div class="queue-monitor">
-          <div class="queue-grid">
-            <div
-              v-for="dept in queueDepts"
-              :key="dept.code"
-              class="queue-card"
-              :class="queueCardClass(dept)"
-            >
-              <div class="queue-card-header">{{ dept.name }}</div>
-              <div class="queue-card-body">
-                <div class="queue-main">
-                  <span class="queue-num">{{ dept.depth || 0 }}</span>
-                  <span class="queue-unit">人排队</span>
-                </div>
-                <div class="queue-metrics">
-                  <div class="queue-metric">
-                    <span class="q-label">平均等待</span>
-                    <span class="q-val">{{ dept.avgWait || '0s' }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="queue-card-status" :class="queueCardClass(dept)"></div>
-            </div>
           </div>
         </div>
       </el-tab-pane>
