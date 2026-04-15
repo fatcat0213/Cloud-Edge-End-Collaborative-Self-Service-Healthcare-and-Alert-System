@@ -296,7 +296,7 @@
       <el-tab-pane label="指令记录" name="commands">
         <!-- Command history table with terminal status -->
         <div class="card" style="margin-bottom: 12px">
-          <el-table :data="terminalTableData" stripe style="width:100%" size="small" v-loading="terminalsStore.terminals.length === 0">
+          <el-table ref="terminalTableRef" :data="terminalTableData" stripe style="width:100%" size="small" v-loading="terminalsStore.terminals.length === 0">
             <el-table-column prop="id" label="终端ID" width="90">
               <template #default="{ row }">
                 <span class="mono">{{ row.id }}</span>
@@ -338,6 +338,11 @@
               <template #default="{ row }">
                 <span class="hw-tag" :class="hwClass(row.hardware?.printer)">打印机{{ hwLabel(row.hardware?.printer) }}</span>
                 <span class="hw-tag" :class="hwClass(row.hardware?.cardReader)">读卡器{{ hwLabel(row.hardware?.cardReader) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="80" fixed="right">
+              <template #default="{ row }">
+                <el-button size="small" @click="openTerminalDrawer(row.id)">详情</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -546,6 +551,12 @@
 
     </el-tabs>
 
+    <!-- Terminal detail drawer -->
+    <TerminalDetailDrawer
+      v-model:visible="drawerVisible"
+      :terminal-id="selectedTerminalId"
+    />
+
     <!-- Command dispatch dialog -->
     <el-dialog v-model="showCmdDialog" width="560px" top="40px" :close-on-click-modal="false" class="cmd-dialog">
       <!-- Dialog header -->
@@ -655,6 +666,7 @@ import { useTerminalsStore } from '../stores/terminals'
 import { useAlertsStore } from '../stores/alerts'
 import { useAuthStore } from '../stores/auth'
 import { injectScene } from '../api'
+import TerminalDetailDrawer from '../components/TerminalDetailDrawer.vue'
 
 const cloudStore = useCloudSideStore()
 const edgeStore = useEdgeNodeStore()
@@ -663,6 +675,15 @@ const alertsStore = useAlertsStore()
 const authStore = useAuthStore()
 
 const activeTab = ref('overview')
+
+// 终端详情抽屉
+const drawerVisible = ref(false)
+const selectedTerminalId = ref('')
+
+function openTerminalDrawer(id) {
+  selectedTerminalId.value = id
+  drawerVisible.value = true
+}
 
 // 场景注入
 const sceneOptions = [
