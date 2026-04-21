@@ -34,6 +34,17 @@
 | SANKEY-02 | 动态更新 | 数据变化时渐变过渡 |
 | SANKEY-03 | 节点样式 | 显示各阶段总数，渐变流向连接 |
 
+### PERSISTENCE (持久化)
+
+| ID | Requirement | Acceptance Criteria |
+|----|-------------|---------------------|
+| PERSIST-01 | 运维日志写入后端持久化存储 | POST /api/v1/opslog 持久化到 Redis |
+| PERSIST-02 | 页面刷新后运维日志完整保留 | GET /api/v1/opslog 返回 Redis 数据 |
+| PERSIST-03 | 命令下发记录持久化 | GET /api/v1/commands/recent 返回 Redis 数据 |
+| PERSIST-04 | 告警确认/解决操作持久化 | 告警状态持久化到 Redis |
+| PERSIST-05 | 持久化数据支持时间范围查询 | GET /api/v1/opslog?startTime=&endTime= |
+| PERSIST-06 | 持久化层对前端透明 | 前端只调用 API，不知道 Redis 存在 |
+
 ---
 
 ## v2 (Deferred)
@@ -67,6 +78,12 @@
 | SANKEY-01 | 1 | Planned |
 | SANKEY-02 | 1 | Planned |
 | SANKEY-03 | 1 | Planned |
+| PERSIST-01 | 3 | Complete |
+| PERSIST-02 | 3 | Complete |
+| PERSIST-03 | 3 | Complete |
+| PERSIST-04 | 3 | Planned |
+| PERSIST-05 | 3 | Planned |
+| PERSIST-06 | 3 | Complete |
 
 ---
 
