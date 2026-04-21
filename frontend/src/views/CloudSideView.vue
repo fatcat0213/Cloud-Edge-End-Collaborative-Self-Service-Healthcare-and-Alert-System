@@ -38,7 +38,7 @@
       <!-- Tab 1: 概览 -->
       <el-tab-pane label="概览" name="overview">
         <!-- Three-column top section -->
-        <div class="top-grid">
+        <div class="top-grid overview-top-grid">
           <!-- Left: Cloud dispatched commands -->
           <div class="card">
             <div class="card-header">
@@ -62,52 +62,24 @@
             </div>
           </div>
 
-          <!-- Center: Cloud-Edge-Terminal flow diagram -->
-          <div class="card flow-card">
+          <!-- Center: Heatmap + Sankey charts -->
+          <div class="card chart-card">
             <div class="card-header">
-              <span class="card-icon">🔄</span>
-              <span class="card-title">云边端消息流转</span>
+              <span class="card-icon">🗺️</span>
+              <span class="card-title">故障热力图</span>
               <span class="live-chip">● LIVE</span>
             </div>
-            <div class="flow-diagram">
-              <div class="flow-layer cloud-layer">
-                <div class="flow-box cloud-box">
-                  <div class="flow-layer-label">☁ 云端</div>
-                  <div class="flow-service">Cloud Gateway</div>
-                  <div class="flow-service">微服务集群</div>
-                </div>
-              </div>
-              <div class="flow-arrow">↓ {{ msgRateDisplay }}</div>
-              <div class="flow-layer edge-layer">
-                <div class="flow-box edge-box">
-                  <div class="flow-layer-label">📶 边端</div>
-                  <div class="flow-service">Edge Service</div>
-                  <div class="flow-service">MQTT Broker</div>
-                </div>
-              </div>
-              <div class="flow-arrow">↓ {{ edgeRateDisplay }}</div>
-              <div class="flow-layer terminal-layer">
-                <div class="flow-box terminal-box">
-                  <div class="flow-layer-label">📱 终端</div>
-                  <div class="flow-service">终端 {{ terminalCount }} 台</div>
-                  <div class="flow-service">实时心跳</div>
-                </div>
-              </div>
+            <v-chart class="heatmap-chart" :option="heatmapOption" autoresize @click="onHeatmapClick" />
+          </div>
+
+          <!-- Right: Sankey diagram -->
+          <div class="card chart-card">
+            <div class="card-header">
+              <span class="card-icon">🔀</span>
+              <span class="card-title">业务流转桑基图</span>
+              <span class="live-chip">● LIVE</span>
             </div>
-            <div class="flow-stats">
-              <div class="flow-stat">
-                <div class="flow-stat-val">{{ cloudMsgCount }}</div>
-                <div class="flow-stat-label">云端消息</div>
-              </div>
-              <div class="flow-stat">
-                <div class="flow-stat-val">{{ edgeMsgCount }}</div>
-                <div class="flow-stat-label">边端消息</div>
-              </div>
-              <div class="flow-stat">
-                <div class="flow-stat-val">{{ terminalMsgCount }}</div>
-                <div class="flow-stat-label">终端消息</div>
-              </div>
-            </div>
+            <v-chart class="sankey-chart" :option="sankeyOption" autoresize />
           </div>
 
           <!-- Right: Edge reported events -->
@@ -137,96 +109,10 @@
           </div>
         </div>
 
-        <!-- Live business stream strip -->
-        <div class="biz-stream">
-          <div class="biz-stream-header">
-            <span class="biz-icon">⚡</span>
-            <span class="biz-title">实时业务流</span>
-            <span class="live-chip">● LIVE</span>
-          </div>
-          <div class="biz-scroll">
-            <div v-for="biz in bizRecords" :key="biz.id || biz.recordId || Math.random()" class="biz-item">
-              <span class="biz-type" :class="'biz-' + bizType(biz.type)">{{ bizTypeLabel(biz.type) }}</span>
-              <span class="biz-msg">{{ biz.patientName || biz.patientId || '' }} · {{ biz.message || biz.desc || formatBiz(biz) }}</span>
-              <span class="biz-time">{{ fmtTime(biz.timestamp || biz.createdAt) }}</span>
-            </div>
-            <el-empty v-if="!bizRecords.length" description="暂无业务记录" :image-size="32" />
-          </div>
-        </div>
       </el-tab-pane>
 
       <!-- Tab 2: 运维处置 -->
       <el-tab-pane label="运维处置" name="ops">
-        <!-- Left: Command dispatch log -->
-        <div class="ops-grid">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon">📨</span>
-              <span class="card-title">命令下发记录</span>
-              <span class="card-badge">{{ recentCommands.length }} 条</span>
-            </div>
-            <div class="cmd-list">
-              <div v-for="cmd in recentCommands" :key="cmd.commandId || cmd.id" class="cmd-item">
-                <div class="cmd-top">
-                  <el-tag :type="cmdTypeTag(cmd.type)" size="small">{{ cmd.type || 'UNKNOWN' }}</el-tag>
-                  <span class="cmd-terminal">终端 {{ cmd.terminalId || '-' }}</span>
-                  <span class="cmd-time">{{ fmtTime(cmd.createdAt || cmd.timestamp) }}</span>
-                </div>
-                <div class="cmd-msg">{{ cmd.message || cmd.payload || '-' }}</div>
-                <div class="cmd-status">
-                  <el-tag :type="cmdStatusTag(cmd.status)" size="small">{{ cmdStatusLabel(cmd.status) }}</el-tag>
-                </div>
-              </div>
-              <el-empty v-if="!recentCommands.length" description="暂无下发指令" :image-size="48" />
-            </div>
-          </div>
-
-          <!-- Center: Real-time biz stream -->
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon">⚡</span>
-              <span class="card-title">实时业务流</span>
-              <span class="live-chip">● LIVE</span>
-            </div>
-            <div class="event-scroll">
-              <div v-for="biz in bizRecords" :key="biz.id || biz.recordId || Math.random()" class="evt-item">
-                <div class="evt-top">
-                  <span class="evt-type">{{ bizTypeLabel(biz.type) }}</span>
-                  <span class="evt-time">{{ fmtTime(biz.timestamp || biz.createdAt) }}</span>
-                </div>
-                <div class="evt-msg">{{ biz.patientName || biz.patientId || '' }} · {{ biz.message || biz.desc || formatBiz(biz) }}</div>
-              </div>
-              <el-empty v-if="!bizRecords.length" description="暂无业务记录" :image-size="48" />
-            </div>
-          </div>
-
-          <!-- Right: Edge events -->
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon">📡</span>
-              <span class="card-title">边端上报事件</span>
-              <span class="card-badge">{{ recentEvents.length }} 条</span>
-            </div>
-            <div class="event-scroll" v-infinite-scroll="loadMoreEvents">
-              <div
-                v-for="evt in recentEvents"
-                :key="evt.id || evt.eventId || Math.random()"
-                class="evt-item"
-                :class="evtLevelClass(evt.level)"
-              >
-                <div class="evt-top">
-                  <span class="evt-level-badge" :class="evtLevelClass(evt.level)">{{ evt.level || 'INFO' }}</span>
-                  <span class="evt-type">{{ typeLabel(evt.type) }}</span>
-                  <span class="evt-time">{{ fmtTime(evt.timestamp) }}</span>
-                </div>
-                <div class="evt-msg">{{ evt.message || evt.desc || '-' }}</div>
-                <div class="evt-meta">终端 {{ evt.terminalId || '-' }}</div>
-              </div>
-              <el-empty v-if="!recentEvents.length" description="暂无上报事件" :image-size="48" />
-            </div>
-          </div>
-        </div>
-
         <!-- 场景注入面板 -->
         <div class="injection-panel">
           <div class="injection-header">
@@ -406,6 +292,32 @@
             </span>
           </div>
 
+          <!-- 告警图表行 -->
+          <div class="alert-charts-row">
+            <div class="card alert-chart-card">
+              <div class="card-header">
+                <span class="card-icon">📈</span>
+                <span class="card-title">告警趋势</span>
+              </div>
+              <v-chart class="alert-trend-chart" :option="alertTrendOption" autoresize />
+            </div>
+            <div class="card alert-chart-card">
+              <div class="card-header">
+                <span class="card-icon">📊</span>
+                <span class="card-title">告警分布</span>
+              </div>
+              <v-chart class="alert-dist-chart" :option="alertDistOption" autoresize />
+            </div>
+          </div>
+
+          <!-- 批量操作栏 -->
+          <div class="batch-action-bar" v-if="alertsStore.selectedAlerts.size > 0">
+            <span class="batch-tip">已选择 {{ alertsStore.selectedAlerts.size }} 条告警</span>
+            <el-button size="small" type="warning" @click="alertsStore.batchAcknowledge()">批量确认</el-button>
+            <el-button size="small" type="success" @click="alertsStore.batchResolve()">批量解决</el-button>
+            <el-button size="small" @click="alertsStore.clearSelection()">清空</el-button>
+          </div>
+
           <!-- 过滤器栏 -->
           <div class="alert-filters">
             <el-select v-model="alertLevelFilter" size="small" placeholder="级别" clearable style="width:100px" @change="syncAlertFilters()">
@@ -422,7 +334,8 @@
           </div>
 
           <!-- 告警列表 -->
-          <el-table :data="alertsStore.pagedAlerts" stripe size="small" v-loading="alertsStore.loading" class="alerts-table">
+          <el-table :data="alertsStore.pagedAlerts" stripe size="small" v-loading="alertsStore.loading" class="alerts-table" @selection-change="alertsStore.selectedAlerts = new Set($event.map(r => r.id))">
+            <el-table-column type="selection" width="40" />
             <el-table-column label="级别" width="70">
               <template #default="{ row }">
                 <span class="level-badge" :class="'level-' + (row.level || 'P2').toLowerCase()">{{ row.level || 'P2' }}</span>
@@ -490,27 +403,36 @@
       <!-- Tab 5: 队列监控 -->
       <el-tab-pane label="队列监控" name="queue">
         <div class="queue-monitor">
-          <div class="queue-grid">
-            <div
-              v-for="dept in queueDepts"
-              :key="dept.code"
-              class="queue-card"
-              :class="queueCardClass(dept)"
-            >
-              <div class="queue-card-header">{{ dept.name }}</div>
-              <div class="queue-card-body">
-                <div class="queue-main">
-                  <span class="queue-num">{{ dept.depth || 0 }}</span>
-                  <span class="queue-unit">人排队</span>
-                </div>
-                <div class="queue-metrics">
-                  <div class="queue-metric">
-                    <span class="q-label">平均等待</span>
-                    <span class="q-val">{{ dept.avgWait || '0s' }}</span>
-                  </div>
-                </div>
+          <!-- Metrics row -->
+          <div class="queue-metrics-row">
+            <div class="q-metric-card">
+              <div class="q-metric-label">总排队人数</div>
+              <div class="q-metric-val">{{ totalQueueDepth }}</div>
+            </div>
+            <div class="q-metric-card">
+              <div class="q-metric-label">平均等待时间</div>
+              <div class="q-metric-val">{{ avgWaitDisplay }}</div>
+            </div>
+            <div class="q-metric-card">
+              <div class="q-metric-label">最繁忙科室</div>
+              <div class="q-metric-val">{{ busiestDept }}</div>
+            </div>
+          </div>
+          <!-- Charts row -->
+          <div class="queue-charts-row">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-icon">📊</span>
+                <span class="card-title">各科室队列深度</span>
               </div>
-              <div class="queue-card-status" :class="queueCardClass(dept)"></div>
+              <v-chart class="queue-bar-chart" :option="queueBarOption" autoresize />
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-icon">⏱️</span>
+                <span class="card-title">平均等待时间分布</span>
+              </div>
+              <v-chart class="queue-bar-chart" :option="queueWaitBarOption" autoresize />
             </div>
           </div>
         </div>
@@ -667,6 +589,13 @@ import { useAlertsStore } from '../stores/alerts'
 import { useAuthStore } from '../stores/auth'
 import { injectScene } from '../api'
 import TerminalDetailDrawer from '../components/TerminalDetailDrawer.vue'
+import VChart from 'vue-echarts'
+import { use } from 'echarts/core'
+import { HeatmapChart, SankeyChart, BarChart, LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+use([HeatmapChart, SankeyChart, BarChart, LineChart, GridComponent, TooltipComponent, VisualMapComponent, CanvasRenderer])
 
 const cloudStore = useCloudSideStore()
 const edgeStore = useEdgeNodeStore()
@@ -683,38 +612,6 @@ const selectedTerminalId = ref('')
 function openTerminalDrawer(id) {
   selectedTerminalId.value = id
   drawerVisible.value = true
-}
-
-// 场景注入
-const sceneOptions = [
-  { value: 'offline', label: '终端离线', icon: '💤', desc: '模拟终端断开连接' },
-  { value: 'printer_error', label: '打印机故障', icon: '🖨️', desc: '模拟打印机卡纸/故障' },
-  { value: 'card_reader_error', label: '读卡器故障', icon: '💳', desc: '模拟读卡器异常' },
-]
-const selectedScene = ref('')
-const selectedInjectionTerminal = ref('')
-const injectionLoading = ref(false)
-const showInjectionConfirm = ref(false)
-
-async function injectSceneAction() {
-  if (!selectedScene.value || !selectedInjectionTerminal.value) return
-  injectionLoading.value = true
-  try {
-    await injectScene({ terminalId: selectedInjectionTerminal.value, scene: selectedScene.value })
-    ElMessage.success('场景注入成功')
-    showInjectionConfirm.value = false
-    selectedScene.value = ''
-    selectedInjectionTerminal.value = ''
-    await Promise.all([
-      terminalsStore.fetchTerminals(),
-      alertsStore.fetchAlerts(),
-      edgeStore.fetchRecentCommands()
-    ])
-  } catch (e) {
-    ElMessage.error('注入失败: ' + (e.message || '未知错误'))
-  } finally {
-    injectionLoading.value = false
-  }
 }
 
 // 告警过滤器
@@ -768,6 +665,38 @@ const selectedTerminalSummary = computed(() => {
   return ids.slice(0, 3).join('、') + '...'
 })
 
+// 场景注入
+const sceneOptions = [
+  { value: 'offline', label: '终端离线', icon: '💤', desc: '模拟终端断开连接' },
+  { value: 'printer_error', label: '打印机故障', icon: '🖨️', desc: '模拟打印机卡纸/故障' },
+  { value: 'card_reader_error', label: '读卡器故障', icon: '💳', desc: '模拟读卡器异常' },
+]
+const selectedScene = ref('')
+const selectedInjectionTerminal = ref('')
+const injectionLoading = ref(false)
+const showInjectionConfirm = ref(false)
+
+async function injectSceneAction() {
+  if (!selectedScene.value || !selectedInjectionTerminal.value) return
+  injectionLoading.value = true
+  try {
+    await injectScene({ terminalId: selectedInjectionTerminal.value, scene: selectedScene.value })
+    ElMessage.success('场景注入成功')
+    showInjectionConfirm.value = false
+    selectedScene.value = ''
+    selectedInjectionTerminal.value = ''
+    await Promise.all([
+      terminalsStore.fetchTerminals(),
+      alertsStore.fetchAlerts(),
+      edgeStore.fetchRecentCommands()
+    ])
+  } catch (e) {
+    ElMessage.error('注入失败: ' + (e.message || '未知错误'))
+  } finally {
+    injectionLoading.value = false
+  }
+}
+
 // Live counters (simulated for demo)
 const cloudMsgCount = ref(0)
 const edgeMsgCount = ref(0)
@@ -790,7 +719,7 @@ const edgeRateDisplay = computed(() => {
   return parseFloat(rate).toFixed(1)
 })
 
-const recentCommands = computed(() => edgeStore.commands.slice(0, 12))
+const recentCommands = computed(() => (Array.isArray(edgeStore.commands) ? edgeStore.commands : []).slice(0, 12))
 
 const recentEvents = computed(() => {
   const fromAlerts = (cloudStore.edgeAlerts || []).map(a => ({ ...a, id: a.id || a.alertId }))
@@ -808,7 +737,7 @@ const bizRecords = computed(() => {
   return combined.slice(0, 30)
 })
 
-const commandTableData = computed(() => edgeStore.commands.slice(0, 20))
+const commandTableData = computed(() => (Array.isArray(edgeStore.commands) ? edgeStore.commands : []).slice(0, 20))
 
 const terminalTableData = computed(() => terminalsStore.terminals)
 
@@ -849,6 +778,207 @@ function queueCardClass(dept) {
   return 'status-ok'
 }
 
+// ── Queue metrics ───────────────────────────────────────────────────────────
+const totalQueueDepth = computed(() => {
+  return queueDepts.value.reduce((sum, d) => sum + (d.depth || 0), 0)
+})
+
+const avgWaitDisplay = computed(() => {
+  const depts = queueDepts.value
+  if (!depts.length) return '0s'
+  const totalMs = depts.reduce((sum, d) => {
+    const s = parseInt(d.avgWait)
+    return sum + (isNaN(s) ? 0 : s)
+  }, 0)
+  return Math.round(totalMs / depts.length) + 's'
+})
+
+const busiestDept = computed(() => {
+  if (!queueDepts.value.length) return '-'
+  const max = queueDepts.value.reduce((a, b) => (a.depth > b.depth ? a : b))
+  return max.name + ' (' + max.depth + '人)'
+})
+
+// ── Queue bar chart ─────────────────────────────────────────────────────────
+const queueBarOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
+  xAxis: {
+    type: 'category',
+    data: queueDepts.value.map(d => d.name),
+    axisLabel: { fontSize: 11, color: '#64748b' },
+    axisLine: { lineStyle: { color: '#e2e8f0' } }
+  },
+  yAxis: {
+    type: 'value',
+    name: '排队人数',
+    axisLabel: { fontSize: 11, color: '#64748b' },
+    splitLine: { lineStyle: { color: '#f1f5f9' } }
+  },
+  series: [{
+    type: 'bar',
+    data: queueDepts.value.map(d => ({
+      value: d.depth || 0,
+      itemStyle: {
+        color: d.depth > 40 ? '#ef4444' : d.depth > 20 ? '#f59e0b' : '#10b981'
+      }
+    })),
+    barWidth: '50%',
+    label: { show: true, position: 'top', fontSize: 11, color: '#64748b' }
+  }]
+}))
+
+const alertTrendOption = computed(() => {
+  const buckets = alertsStore.alertsByHour
+  return {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['P0', 'P1', 'P2'], top: 5, right: 10 },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '15%', containLabel: true },
+    xAxis: { type: 'category', data: buckets.map(b => String(b.hour).padStart(2, '0') + ':00'), axisLabel: { fontSize: 10, color: '#64748b' } },
+    yAxis: { type: 'value', name: '告警数', axisLabel: { fontSize: 10, color: '#64748b' } },
+    series: [
+      { name: 'P0', type: 'line', data: buckets.map(b => b.p0), smooth: true, itemStyle: { color: '#ef4444' } },
+      { name: 'P1', type: 'line', data: buckets.map(b => b.p1), smooth: true, itemStyle: { color: '#f59e0b' } },
+      { name: 'P2', type: 'line', data: buckets.map(b => b.p2), smooth: true, itemStyle: { color: '#3b82f6' } }
+    ]
+  }
+})
+
+const alertDistOption = computed(() => {
+  const data = (alertsStore.distributionByTerminal || []).slice(0, 10)
+  return {
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
+    xAxis: { type: 'category', data: data.map(d => d.name), axisLabel: { fontSize: 10, color: '#64748b', rotate: 30 } },
+    yAxis: { type: 'value', name: '数量', axisLabel: { fontSize: 10, color: '#64748b' } },
+    series: [{ type: 'bar', data: data.map(d => ({ value: d.value, itemStyle: { color: d.value > 5 ? '#ef4444' : d.value > 2 ? '#f59e0b' : '#10b981' } })), barWidth: '50%' }]
+  }
+})
+
+const queueWaitBarOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
+  xAxis: {
+    type: 'category',
+    data: queueDepts.value.map(d => d.name),
+    axisLabel: { fontSize: 11, color: '#64748b' },
+    axisLine: { lineStyle: { color: '#e2e8f0' } }
+  },
+  yAxis: {
+    type: 'value',
+    name: '等待时间(s)',
+    axisLabel: { fontSize: 11, color: '#64748b' },
+    splitLine: { lineStyle: { color: '#f1f5f9' } }
+  },
+  series: [{
+    type: 'bar',
+    data: queueDepts.value.map(d => {
+      const s = parseInt(d.avgWait) || 0
+      return {
+        value: s,
+        itemStyle: {
+          color: s > 120 ? '#ef4444' : s > 60 ? '#f59e0b' : '#3b82f6'
+        }
+      }
+    }),
+    barWidth: '50%',
+    label: { show: true, position: 'top', fontSize: 11, color: '#64748b' }
+  }]
+}))
+
+// ── Heatmap ─────────────────────────────────────────────────────────────────
+const heatmapOption = computed(() => {
+  const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  // Build 24h×7d matrix from alerts
+  const matrix = Array.from({ length: 7 }, () => Array(24).fill(0))
+  for (const a of alertsStore.alerts) {
+    if (!a.timestamp) continue
+    const d = new Date(a.timestamp)
+    const day = d.getDay()
+    const hour = d.getHours()
+    matrix[day][hour]++
+  }
+  const data = []
+  for (let day = 0; day < 7; day++) {
+    for (let hour = 0; hour < 24; hour++) {
+      data.push([hour, day, matrix[day][hour]])
+    }
+  }
+  return {
+    tooltip: {
+      position: 'top',
+      formatter: (p) => `周${DAYS[p.data[1]]} ${String(p.data[0]).padStart(2, '0')}:00<br/>故障: <b>${p.data[2]}</b> 条`
+    },
+    grid: { left: '5%', right: '12%', top: '5%', bottom: '15%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`),
+      axisLabel: { fontSize: 9, color: '#64748b', interval: 2 },
+      axisLine: { lineStyle: { color: '#e2e8f0' } },
+      splitArea: { show: true, interval: 0 }
+    },
+    yAxis: {
+      type: 'category',
+      data: DAYS,
+      axisLabel: { fontSize: 11, color: '#64748b' },
+      axisLine: { lineStyle: { color: '#e2e8f0' } },
+      splitArea: { show: true, interval: 0 }
+    },
+    visualMap: {
+      min: 0, max: 10, calculable: true,
+      orient: 'vertical', right: '1%', top: 'center',
+      inRange: { color: ['#313695', '#74add1', '#fdae61', '#f46d43', '#d73027'] },
+      textStyle: { fontSize: 10, color: '#64748b' }
+    },
+    series: [{
+      type: 'heatmap',
+      data,
+      label: { show: false },
+      emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
+      itemStyle: { borderRadius: 2, borderWidth: 1, borderColor: '#fff' }
+    }]
+  }
+})
+
+function onHeatmapClick(params) {
+  if (!params.data) return
+  const hour = params.data[0]
+  const day = params.data[1]
+  const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  ElMessage.info(`查看周${DAYS[day]} ${String(hour).padStart(2, '0')}:00 的告警详情`)
+  // Switch to alerts tab filtered by time
+  activeTab.value = 'alerts'
+  // TODO: apply time filter to alertsStore
+}
+
+// ── Sankey ──────────────────────────────────────────────────────────────────
+const sankeyOption = computed(() => {
+  const regCount = (cloudStore.registrationRecords || []).length || 45
+  const payCount = (cloudStore.paymentRecords || []).length || 38
+  const insCount = Math.floor(Math.min(regCount, payCount) * 0.85) || 30
+  return {
+    tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+    series: [{
+      type: 'sankey',
+      layout: 'none',
+      emphasis: { focus: 'adjacency' },
+      nodeAlign: 'left',
+      lineStyle: { color: 'gradient', curveness: 0.3 },
+      itemStyle: { borderWidth: 0 },
+      data: [
+        { name: '挂号', itemStyle: { color: '#3b82f6' } },
+        { name: '支付', itemStyle: { color: '#10b981' } },
+        { name: '医保', itemStyle: { color: '#f59e0b' } }
+      ],
+      links: [
+        { source: '挂号', target: '支付', value: payCount },
+        { source: '支付', target: '医保', value: insCount }
+      ],
+      label: { position: 'right', fontSize: 12, color: '#334155' }
+    }]
+  }
+})
+
 // -- Methods --
 async function refreshAll() {
   await Promise.all([
@@ -859,10 +989,19 @@ async function refreshAll() {
   ])
 }
 
-function resetSimulation() {
-  terminalsStore.resetAll()
-  cloudStore.refresh()
-  edgeStore.fetchRecentCommands()
+async function resetSimulation() {
+  try {
+    await terminalsStore.resetAll()
+    await Promise.all([
+      cloudStore.refresh(),
+      alertsStore.fetchAlerts(),
+      edgeStore.fetchRecentCommands(),
+      edgeStore.fetchStats()
+    ])
+    ElMessage.success('模拟已重置，离线终端已恢复')
+  } catch (err) {
+    ElMessage.error('重置模拟失败: ' + (err?.message || '未知错误'))
+  }
 }
 
 function toggleTerminal(id) {
@@ -890,29 +1029,41 @@ function statusDotClass(status) {
 
 async function sendCommandBatch() {
   if (selectedTerminals.value.size === 0) return
+  const cmd = selectedCmd.value
+  const tids = [...selectedTerminals.value]
   cmdLoading.value = true
   try {
-    const terminals = [...selectedTerminals.value]
-    for (const tid of terminals) {
-      const result = await edgeStore.dispatchCommand(tid, selectedCmd.value, cmdForm.value.payload)
-      console.debug('Command sent:', tid, selectedCmd.value, '→', result)
-      // 模拟命令效果
-      if (selectedCmd.value === 'SHUTDOWN') {
+    for (const tid of tids) {
+      await edgeStore.dispatchCommand(tid, cmd, cmdForm.value.payload)
+      if (cmd === 'SHUTDOWN') {
         terminalsStore.simulateShutdown(tid)
-      } else if (selectedCmd.value === 'RESTART') {
+      } else if (cmd === 'RESTART') {
         terminalsStore.simulateRestart(tid)
-      } else if (selectedCmd.value === 'MAINTENANCE') {
+        setTimeout(() => {
+          terminalsStore.recoverTerminal(tid)
+            .then(() => terminalsStore.fetchTerminals())
+            .catch((recoverErr) => {
+              console.warn(`[sendCommandBatch] failed to recover terminal ${tid}:`, recoverErr)
+            })
+        }, 10000)
+      } else if (cmd === 'MAINTENANCE') {
         terminalsStore.simulateMaintenance(tid)
       }
     }
     // Immediately refresh command list
     await edgeStore.fetchRecentCommands()
+    // Delay dialog close so user can see terminal status change
+    await new Promise(r => setTimeout(r, 500))
+    // Force UI refresh: toggle activeTab to trigger re-render
+    const prev = activeTab.value
+    activeTab.value = ''
+    setTimeout(() => { activeTab.value = prev }, 50)
     showCmdDialog.value = false
     selectedTerminals.value = new Set()
     selectedCmd.value = 'RESTART'
     cmdForm.value.payload = ''
   } catch (err) {
-    console.error('Command dispatch failed:', err)
+    console.error('[sendCommandBatch] Command dispatch failed:', err)
   } finally {
     cmdLoading.value = false
   }
@@ -1016,10 +1167,22 @@ function bizTypeLabel(type) {
   return m[type] || '业务'
 }
 
-function formatBiz(biz) {
+const DEPT_MAP = { NEU: '神经科', CARD: '心内科', ORTH: '骨科', INT: '内科', EMRG: '急诊', RESP: '呼吸内科', GAST: '消化内科', ENDO: '内分泌科', DERM: '皮肤科', ENT: '耳鼻喉科' }
+
+function bizDetail(biz) {
+  if (biz.type === 'REGISTRATION' || biz.type === 'REG') {
+    // Handle both real API format (deptCode/doctorName) and mock format (dept/doctor)
+    const deptCode = biz.deptCode || biz.dept || ''
+    const dept = DEPT_MAP[deptCode] || deptCode
+    const doctor = biz.doctorName || biz.doctor || ''
+    return doctor ? `${dept} · ${doctor}` : dept
+  }
+  if (biz.type === 'PAYMENT' || biz.type === 'PAY') {
+    return biz.patientId ? `${biz.patientId} · ¥${biz.amount}` : `¥${biz.amount}`
+  }
   if (biz.amount) return `¥${biz.amount}`
   if (biz.deptName) return biz.deptName
-  return '-'
+  return biz.message || biz.desc || '-'
 }
 
 // -- Live simulation --
@@ -1070,7 +1233,8 @@ onUnmounted(() => {
 .reset-btn { background: rgba(255,255,255,0.15) !important; border: 1px solid rgba(255,255,255,0.3) !important; color: #fff !important; border-radius: 8px !important; }
 
 /* Top grid */
-.top-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 12px; margin-bottom: 12px; }
+.top-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.overview-top-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 
 /* Card */
 .card {
@@ -1172,9 +1336,6 @@ onUnmounted(() => {
 .cloud-main-tabs :deep(.el-tabs__item.is-active) { color: #1a8fe3; font-weight: 700; }
 .cloud-main-tabs :deep(.el-tabs__active-bar) { background-color: #1a8fe3; height: 3px; border-radius: 2px; }
 .cloud-main-tabs :deep(.el-tabs__content) { padding: 0; }
-
-/* Ops tab 3-column grid */
-.ops-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 12px; margin-top: 12px; }
 
 /* Terminal table */
 .mini-bar-wrap { display: inline-block; width: 50px; height: 6px; background: #f1f5f9; border-radius: 3px; vertical-align: middle; margin-right: 4px; overflow: hidden; }
@@ -1306,6 +1467,19 @@ onUnmounted(() => {
 .resolved-text { font-size: 12px; color: #10b981; }
 .alert-pagination { display: flex; justify-content: flex-end; margin-top: 10px; }
 
+.batch-action-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;
+}
+.batch-tip { font-size: 13px; color: #1e40af; font-weight: 600; flex: 1; }
+.alert-charts-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;
+}
+.alert-chart-card { display: flex; flex-direction: column; }
+.alert-trend-chart { height: 180px; }
+.alert-dist-chart { height: 180px; }
+
 /* Queue Monitor */
 .queue-monitor { padding-top: 12px; }
 .queue-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
@@ -1327,6 +1501,25 @@ onUnmounted(() => {
 .status-warn .queue-card-status { background: #f59e0b; }
 .status-warn .queue-num { color: #f59e0b; }
 .status-ok .queue-card-status { background: #10b981; }
+
+/* Queue Redesign */
+.queue-metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+.q-metric-card {
+  background: #fff; border-radius: 10px; padding: 16px;
+  border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px;
+}
+.q-metric-label { font-size: 12px; color: #64748b; font-weight: 600; }
+.q-metric-val { font-size: 24px; font-weight: 700; color: #1a8fe3; }
+.queue-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.queue-bar-chart { height: 240px; }
+
+/* Chart cards */
+.chart-card { display: flex; flex-direction: column; }
+.heatmap-chart { height: 280px; }
+.sankey-chart { height: 280px; }
+
+/* Ops tab 2-column grid */
+.ops-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px; margin-top: 12px; }
 
 /* Scene Injection Panel */
 .injection-panel {

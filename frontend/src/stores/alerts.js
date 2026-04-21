@@ -66,7 +66,7 @@ export const useAlertsStore = defineStore('alerts', () => {
       loading.value = true
       const res = await getEdgeAlerts({ all: true })
       previousTotal.value = alerts.value.length
-      alerts.value = normalizeAlertsPayload(res?.data)
+      alerts.value = normalizeAlertsPayload(res?.data).slice(-60)
     } catch (e) {
       console.error('Failed to fetch alerts:', e)
       alerts.value = []
@@ -118,7 +118,7 @@ export const useAlertsStore = defineStore('alerts', () => {
     currentPage.value = clamped
   }
 
-  function startPolling(interval = 5000) {
+  function startPolling(interval = 1000) {
     fetchAlerts()
     timer = setInterval(fetchAlerts, interval)
   }
@@ -151,6 +151,56 @@ export const useAlertsStore = defineStore('alerts', () => {
     }
     return buckets
   })
+
+  // Distribution by terminal
+  const distributionByTerminal = computed(() => {
+    const map = {}
+    for (const a of alerts.value) {
+      const key = a.terminalId || 'Unknown'
+      map[key] = (map[key] || 0) + 1
+    }
+    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
+  })
+
+  // Distribution by type
+  const distributionByType = computed(() => {
+    const map = {}
+    for (const a of alerts.value) {
+      const key = a.type || 'Unknown'
+      map[key] = (map[key] || 0) + 1
+    }
+    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
+  })
+
+  // Batch selection state
+  const selectedAlerts = ref(new Set())
+
+  function toggleSelect(alertId) {
+    const s = new Set(selectedAlerts.value)
+    if (s.has(alertId)) s.delete(alertId)
+    else s.add(alertId)
+    selectedAlerts.value = s
+  }
+
+  function selectAll() {
+    selectedAlerts.value = new Set(filteredAlerts.value.map(a => a.id))
+  }
+
+  function clearSelection() {
+    selectedAlerts.value = new Set()
+  }
+
+  async function batchAcknowledge() {
+    const ids = [...selectedAlerts.value]
+    await Promise.all(ids.map(id => acknowledge(id)))
+    clearSelection()
+  }
+
+  async function batchResolve() {
+    const ids = [...selectedAlerts.value]
+    await Promise.all(ids.map(id => resolve(id)))
+    clearSelection()
+  }
 
   // 按来源分组统计
   const bySource = computed(() => {
@@ -191,6 +241,14 @@ export const useAlertsStore = defineStore('alerts', () => {
     stopPolling,
     alertsByHour,
     bySource,
-    acknowledgeNewAlerts
+    acknowledgeNewAlerts,
+    distributionByTerminal,
+    distributionByType,
+    selectedAlerts,
+    toggleSelect,
+    selectAll,
+    clearSelection,
+    batchAcknowledge,
+    batchResolve
   }
 })
