@@ -180,59 +180,21 @@
 
       <!-- Tab 3: 指令记录 -->
       <el-tab-pane label="指令记录" name="commands">
-        <!-- Command history table with terminal status -->
-        <div class="card" style="margin-bottom: 12px">
-          <el-table ref="terminalTableRef" :data="terminalTableData" stripe style="width:100%" size="small" v-loading="terminalsStore.terminals.length === 0">
-            <el-table-column prop="id" label="终端ID" width="90">
-              <template #default="{ row }">
-                <span class="mono">{{ row.id }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="location" label="位置" width="140" />
-            <el-table-column label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="statusTag(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="CPU" width="100">
-              <template #default="{ row }">
-                <div class="mini-bar-wrap">
-                  <div class="mini-bar" :style="{ width: row.cpu + '%', background: cpuColor(row.cpu) }"></div>
-                </div>
-                <span class="mini-val">{{ row.cpu }}%</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="内存" width="100">
-              <template #default="{ row }">
-                <div class="mini-bar-wrap">
-                  <div class="mini-bar" :style="{ width: row.memory + '%', background: memColor(row.memory) }"></div>
-                </div>
-                <span class="mini-val">{{ row.memory }}%</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="最近心跳" width="100">
-              <template #default="{ row }">
-                <span :class="heartbeatClass(row.heartbeatSecsAgo)">{{ row.heartbeatSecsAgo }}s 前</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="今日交易" width="90">
-              <template #default="{ row }">
-                <span class="mono">{{ row.todayTx || 0 }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="硬件状态">
-              <template #default="{ row }">
-                <span class="hw-tag" :class="hwClass(row.hardware?.printer)">打印机{{ hwLabel(row.hardware?.printer) }}</span>
-                <span class="hw-tag" :class="hwClass(row.hardware?.cardReader)">读卡器{{ hwLabel(row.hardware?.cardReader) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="80" fixed="right">
-              <template #default="{ row }">
-                <el-button size="small" @click="openTerminalDrawer(row.id)">详情</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+        <!-- Command filter bar -->
+        <div class="cmd-filter-bar">
+          <el-select v-model="cmdTypeFilter" size="small" placeholder="命令类型" clearable style="width:130px" @change="applyCmdFilter">
+            <el-option label="重启" value="RESTART" />
+            <el-option label="维护" value="MAINTENANCE" />
+            <el-option label="健康检查" value="HEALTH_CHECK" />
+            <el-option label="升级" value="UPGRADE" />
+            <el-option label="配置更新" value="CONFIG_UPDATE" />
+            <el-option label="关机" value="SHUTDOWN" />
+          </el-select>
+          <el-input v-model="cmdTerminalFilter" size="small" placeholder="终端ID" clearable style="width:120px" @change="applyCmdFilter" />
+          <el-date-picker v-model="cmdTimeRange" type="datetimerange" size="small" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" style="width:280px" @change="applyCmdFilter" />
+          <el-button size="small" @click="clearCmdFilter">清除筛选</el-button>
         </div>
+        <!-- Command history table -->
         <div class="card">
           <div class="card-header" style="margin-bottom: 12px">
             <span class="card-icon">📋</span>
@@ -649,6 +611,23 @@ const selectedCmd = ref('RESTART')
 const selectedTerminals = ref(new Set())
 const cmdForm = ref({ terminalId: '', type: 'HEALTH_CHECK', payload: '' })
 
+// Command filter refs and methods
+const cmdTypeFilter = ref('')
+const cmdTerminalFilter = ref('')
+const cmdTimeRange = ref(null)
+
+function applyCmdFilter() {
+  const [startTime, endTime] = cmdTimeRange.value || [null, null]
+  edgeStore.setCmdFilter({ type: cmdTypeFilter.value, terminalId: cmdTerminalFilter.value, startTime, endTime })
+}
+
+function clearCmdFilter() {
+  cmdTypeFilter.value = ''
+  cmdTerminalFilter.value = ''
+  cmdTimeRange.value = null
+  edgeStore.setCmdFilter({ type: '', terminalId: '', startTime: null, endTime: null })
+}
+
 const cmdOptions = [
   { type: 'RESTART', icon: '🔄', label: '重启', desc: '远程重启终端' },
   { type: 'MAINTENANCE', icon: '🔧', label: '维护模式', desc: '进入维护状态' },
@@ -737,9 +716,7 @@ const bizRecords = computed(() => {
   return combined.slice(0, 30)
 })
 
-const commandTableData = computed(() => (Array.isArray(edgeStore.commands) ? edgeStore.commands : []).slice(0, 20))
-
-const terminalTableData = computed(() => terminalsStore.terminals)
+const commandTableData = computed(() => (edgeStore.filteredCommands || []).slice(0, 50))
 
 const msgTypeDist = computed(() => {
   const s = edgeStore.stats || {}
@@ -1104,12 +1081,13 @@ function cmdTypeTag(type) {
 function cmdStatusTag(status) {
   if (status === 'SUCCESS' || status === 'COMPLETED') return 'success'
   if (status === 'FAILED' || status === 'ERROR') return 'danger'
-  if (status === 'PENDING' || status === 'SENT') return 'warning'
+  if (status === 'EXECUTING' || status === 'RECEIVED') return 'warning'
+  if (status === 'PENDING' || status === 'SENT') return 'info'
   return 'info'
 }
 
 function cmdStatusLabel(status) {
-  const m = { SUCCESS: '成功', FAILED: '失败', PENDING: '等待', SENT: '已发送', COMPLETED: '完成', ERROR: '错误' }
+  const m = { SUCCESS: '成功', FAILED: '失败', PENDING: '等待', SENT: '发送中', RECEIVED: '已送达', EXECUTING: '执行中', COMPLETED: '完成', ERROR: '错误' }
   return m[status] || status || '未知'
 }
 
@@ -1248,6 +1226,14 @@ onUnmounted(() => {
   font-size: 11px; padding: 2px 8px; background: #f1f5f9; color: #475569;
   border-radius: 20px; font-weight: 600;
 }
+
+/* Command filter bar */
+.cmd-filter-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: #fff; border-radius: 10px; padding: 10px 14px;
+  border: 1px solid #e2e8f0; margin-bottom: 12px;
+}
+
 .live-chip {
   font-size: 10px; padding: 2px 6px; background: #fef3c7; color: #d97706;
   border-radius: 20px; font-weight: 700; animation: pulse 2s infinite;
