@@ -65,6 +65,10 @@ export const getSimulatorTerminals = () => http.get('/simulator/terminals')
 
 export const getSimulatorMetrics = () => http.get('/simulator/metrics')
 
+export const recoverSimulatorTerminal = (terminalId) => http.post(`/simulator/recover/${terminalId}`)
+
+export const resetSimulator = () => http.post('/simulator/reset')
+
 export const getQueueByDept = (deptCode) => http.get(`/queue/${deptCode}`)
 
 export const submitRegistration = (data) => http.post('/registration', data)
@@ -85,5 +89,8 @@ export const getEdgeAlerts = (params = {}) => http.get('/alerts', { params })
 export const acknowledgeAlert = (alertId) => http.post(`/alerts/${alertId}/acknowledge`)
 
 export const resolveAlert = (alertId) => http.post(`/alerts/${alertId}/resolve`)
+
+// OpsLog from Redis (backend-persisted)
+export const getOpsLogs = (params = {}) => http.get('/opslog', { params })
 
 export { edgeCommandApi } from './edgeCommand'
