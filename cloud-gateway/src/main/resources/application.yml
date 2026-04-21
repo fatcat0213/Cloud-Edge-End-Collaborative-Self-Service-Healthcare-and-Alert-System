@@ -38,7 +38,7 @@ spring:
         - id: edge-service
           uri: http://edge-service:8090
           predicates:
-            - Path=/api/v1/alerts/**,/api/v1/commands/**,/api/v1/stats/**
+            - Path=/api/v1/alerts/**,/api/v1/commands/**,/api/v1/stats/**,/api/v1/opslog/**
   data:
     redis:
       host: ${REDIS_HOST:redis}
