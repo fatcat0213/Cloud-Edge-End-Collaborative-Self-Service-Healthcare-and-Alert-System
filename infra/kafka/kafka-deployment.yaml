@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: kafka
-        image: bitnami/kafka:3.6
+        image: soldevelo/kafka:3.6
         env:
         - name: KAFKA_CFG_NODE_ID
           value: "0"

@@ -32,7 +32,7 @@ services:
 
   # Kafka 仅在 --profile full 时启动（国内网络可能超时拉取镜像）
   kafka:
-    image: bitnami/kafka:3.6
+    image: soldevelo/kafka:3.6
     container_name: yunbd-kafka
     profiles: ["full"]
     ports:
